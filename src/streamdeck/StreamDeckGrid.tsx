@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { useStreamDeckState } from './useStreamDeckState';
@@ -16,12 +16,21 @@ export function StreamDeckGrid() {
 
   const handleButtonPress = useCallback((button: StreamDeckButton) => {
     const message = `Ejecutaría: ${button.action.label}`;
+    console.log(message);
     setFeedbackMessage(message);
 
     if (feedbackTimeout.current) {
       clearTimeout(feedbackTimeout.current);
     }
     feedbackTimeout.current = setTimeout(() => setFeedbackMessage(null), FEEDBACK_DURATION_MS);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeout.current) {
+        clearTimeout(feedbackTimeout.current);
+      }
+    };
   }, []);
 
   if (isLoading || !state) {
