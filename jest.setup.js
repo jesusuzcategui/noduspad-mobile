@@ -15,8 +15,12 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 // working Jest mock yet — its own `mock.js` still pulls in real native TurboModule
 // code at import time and crashes outside a device/simulator. `react-native-draggable-flatlist`
 // is the only consumer in this codebase, so it is mocked directly with a plain
-// (non-animated, non-native) stand-in that still calls `renderItem`/`keyExtractor`/
-// `onDragEnd` so components using it can be rendered and tested with RTL.
+// (non-animated, non-native) stand-in that renders every item by calling `renderItem`
+// (with `keyExtractor` and `ItemSeparatorComponent` honored) so components using it can
+// be rendered and tested with RTL. `onDragEnd` is NOT simulated here — drag-gesture
+// completion can't be triggered without a real gesture/animation runtime, so it isn't
+// exercised by this mock or by any current test. Verify drag-and-drop and reordering
+// manually on device (see plan's Task 9).
 jest.mock('react-native-draggable-flatlist', () => {
   const React = require('react');
   const { View } = require('react-native');
