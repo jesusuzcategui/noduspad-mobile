@@ -9,12 +9,18 @@ import { DashboardShell } from './DashboardShell';
 // Navigator/Screen pair that registers routes and honors screenOptions, so we substitute
 // the already-Jest-safe native-stack navigator (see PlaceholderScreen.test.tsx) for the
 // drawer implementation in tests, while production code still uses the real drawer.
+let capturedScreenOptions: any;
+
 jest.mock('@react-navigation/drawer', () => {
   const { createNativeStackNavigator } = jest.requireActual('@react-navigation/native-stack');
   return {
     createDrawerNavigator: () => {
       const Stack = createNativeStackNavigator();
-      return { Navigator: Stack.Navigator, Screen: Stack.Screen };
+      const Navigator = (props: any) => {
+        capturedScreenOptions = props.screenOptions;
+        return <Stack.Navigator {...props} />;
+      };
+      return { Navigator, Screen: Stack.Screen };
     },
   };
 });
@@ -56,5 +62,29 @@ describe('DashboardShell', () => {
     // 'Home' also appears as the AppBar tab label in this layout, so assert on the
     // screen's own content (PlaceholderScreen's testID) rather than the ambiguous text.
     expect(screen.getByTestId('placeholder-title').props.children).toBe('Home');
+  });
+
+  it('configures the drawer as permanent and swipe-enabled when layout is drawer', async () => {
+    (useDashboardLayout as jest.Mock).mockReturnValue('drawer');
+    await render(
+      <NavigationContainer>
+        <DashboardShell />
+      </NavigationContainer>,
+    );
+    expect(capturedScreenOptions.drawerType).toBe('permanent');
+    expect(capturedScreenOptions.swipeEnabled).toBe(true);
+    expect(capturedScreenOptions.drawerStyle).toBeUndefined();
+  });
+
+  it('configures the drawer as front/zero-width and swipe-disabled when layout is appbar', async () => {
+    (useDashboardLayout as jest.Mock).mockReturnValue('appbar');
+    await render(
+      <NavigationContainer>
+        <DashboardShell />
+      </NavigationContainer>,
+    );
+    expect(capturedScreenOptions.drawerType).toBe('front');
+    expect(capturedScreenOptions.swipeEnabled).toBe(false);
+    expect(capturedScreenOptions.drawerStyle).toEqual({ width: 0 });
   });
 });

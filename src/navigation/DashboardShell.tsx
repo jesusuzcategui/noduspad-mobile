@@ -24,6 +24,8 @@ export function DashboardShell() {
         drawerType: isDrawerLayout ? 'permanent' : 'front',
         drawerStyle: isDrawerLayout ? undefined : { width: 0 },
         swipeEnabled: isDrawerLayout,
+        drawerActiveTintColor: '#ffffff',
+        drawerInactiveTintColor: '#8a8a8a',
       }}>
       <Drawer.Screen name="Home" component={HomeScreen} />
       <Drawer.Screen name="Settings" component={SettingsScreen} />

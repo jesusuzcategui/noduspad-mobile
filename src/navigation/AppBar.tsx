@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type DashboardRouteName = 'Home' | 'Settings' | 'About';
 
@@ -11,8 +12,10 @@ type AppBarProps = {
 };
 
 export function AppBar({ activeRoute, onNavigate }: AppBarProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       {ROUTES.map(route => (
         <Pressable
           key={route}
