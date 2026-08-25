@@ -1,6 +1,7 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useDashboardLayout } from './useBreakpoint';
+import { GlassDrawerContent } from './GlassDrawerContent';
 import { HomeScreen } from '../screens/HomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { AboutScreen } from '../screens/AboutScreen';
@@ -19,13 +20,12 @@ export function DashboardShell() {
 
   return (
     <Drawer.Navigator
+      drawerContent={GlassDrawerContent}
       screenOptions={{
         headerShown: false,
         drawerType: isDrawerLayout ? 'permanent' : 'front',
         drawerStyle: isDrawerLayout ? undefined : { width: 0 },
         swipeEnabled: isDrawerLayout,
-        drawerActiveTintColor: '#ffffff',
-        drawerInactiveTintColor: '#8a8a8a',
       }}>
       <Drawer.Screen name="Home" component={HomeScreen} />
       <Drawer.Screen name="Settings" component={SettingsScreen} />

@@ -11,17 +11,19 @@ import { NavigationContainer, DarkTheme, Theme } from '@react-navigation/native'
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/auth/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { GlassBackground } from './src/theme/GlassBackground';
+import { color } from './src/theme/glass';
 
 const navigationTheme: Theme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    primary: '#3a7bfd',
-    background: '#0d0d0d',
-    card: '#161616',
-    text: '#ffffff',
-    border: '#2a2a2a',
-    notification: '#ff5c5c',
+    primary: color.accent,
+    background: 'transparent',
+    card: 'transparent',
+    text: color.textPrimary,
+    border: color.panelBorder,
+    notification: color.danger,
   },
 };
 
@@ -29,12 +31,14 @@ function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <StatusBar barStyle="light-content" />
-          <NavigationContainer theme={navigationTheme}>
-            <RootNavigator />
-          </NavigationContainer>
-        </AuthProvider>
+        <GlassBackground>
+          <AuthProvider>
+            <StatusBar barStyle="light-content" />
+            <NavigationContainer theme={navigationTheme}>
+              <RootNavigator />
+            </NavigationContainer>
+          </AuthProvider>
+        </GlassBackground>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

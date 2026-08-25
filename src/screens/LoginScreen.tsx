@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { GlassPanel } from '../theme/GlassPanel';
+import { color, radius, shadow, space, type } from '../theme/glass';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -34,34 +36,39 @@ export function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Native Stream Deck</Text>
-      <TextInput
-        testID="login-email"
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#8a8a8a"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        testID="login-password"
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#8a8a8a"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      {error !== null && (
-        <Text testID="login-error" style={styles.error}>
-          {error}
-        </Text>
-      )}
-      <Pressable testID="login-submit" style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Ingresar</Text>
-      </Pressable>
+      <GlassPanel style={styles.card}>
+        <Text style={styles.title}>Native Stream Deck</Text>
+        <TextInput
+          testID="login-email"
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor={color.textMuted}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <TextInput
+          testID="login-password"
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor={color.textMuted}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+        {error !== null && (
+          <Text testID="login-error" style={styles.error}>
+            {error}
+          </Text>
+        )}
+        <Pressable
+          testID="login-submit"
+          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+          onPress={handleSubmit}>
+          <Text style={styles.buttonText}>Ingresar</Text>
+        </Pressable>
+      </GlassPanel>
     </View>
   );
 }
@@ -70,38 +77,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: '#0d0d0d',
+    paddingHorizontal: space.lg,
+  },
+  card: {
+    paddingHorizontal: space.xl,
+    paddingVertical: space.xxl,
   },
   title: {
-    color: '#ffffff',
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 32,
+    ...type.display,
+    fontSize: 26,
+    color: color.textPrimary,
+    marginBottom: space.xxl,
     textAlign: 'center',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#2a2a2a',
-    borderRadius: 8,
-    color: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
+    borderColor: color.inputBorder,
+    borderRadius: radius.input,
+    backgroundColor: color.inputFill,
+    color: color.textPrimary,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md + 2,
+    marginBottom: space.md,
+    ...type.body,
   },
   error: {
-    color: '#ff5c5c',
-    marginBottom: 12,
+    color: color.danger,
+    marginBottom: space.md,
+    ...type.caption,
   },
   button: {
-    backgroundColor: '#3a7bfd',
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: color.accent,
+    borderRadius: radius.input,
+    paddingVertical: space.md + 2,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: space.xs,
+    ...shadow.floating,
+    shadowColor: color.accent,
+  },
+  buttonPressed: {
+    backgroundColor: color.accentPressed,
   },
   buttonText: {
+    ...type.label,
+    fontSize: 16,
     color: '#ffffff',
-    fontWeight: '600',
   },
 });

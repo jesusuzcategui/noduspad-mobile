@@ -1,14 +1,18 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ScreenWithAppBar } from '../navigation/ScreenWithAppBar';
+import { GlassPanel } from '../theme/GlassPanel';
+import { color, space, type } from '../theme/glass';
 
 export function PlaceholderScreen({ title }: { title: string }) {
   return (
     <ScreenWithAppBar>
       <View style={styles.container}>
-        <Text testID="placeholder-title" style={styles.title}>
-          {title}
-        </Text>
+        <GlassPanel style={styles.card}>
+          <Text testID="placeholder-title" style={styles.title}>
+            {title}
+          </Text>
+        </GlassPanel>
       </View>
     </ScreenWithAppBar>
   );
@@ -19,11 +23,16 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0d0d0d',
+    paddingHorizontal: space.xl,
+  },
+  card: {
+    paddingHorizontal: space.xxl,
+    paddingVertical: space.xl,
+    alignItems: 'center',
   },
   title: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '600',
+    ...type.title,
+    fontSize: 22,
+    color: color.textPrimary,
   },
 });
