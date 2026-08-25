@@ -1,6 +1,11 @@
 import React from 'react';
-import { PlaceholderScreen } from './PlaceholderScreen';
+import { ScreenWithAppBar } from '../navigation/ScreenWithAppBar';
+import { StreamDeckGrid } from '../streamdeck/StreamDeckGrid';
 
 export function HomeScreen() {
-  return <PlaceholderScreen title="Home" />;
+  return (
+    <ScreenWithAppBar>
+      <StreamDeckGrid />
+    </ScreenWithAppBar>
+  );
 }
