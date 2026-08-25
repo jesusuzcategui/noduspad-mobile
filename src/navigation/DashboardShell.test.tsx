@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DashboardShell } from './DashboardShell';
 
 // @react-navigation/drawer pulls in react-native-drawer-layout -> react-native-reanimated
@@ -31,6 +32,10 @@ jest.mock('./useBreakpoint', () => ({
 
 import { useDashboardLayout } from './useBreakpoint';
 
+beforeEach(async () => {
+  await AsyncStorage.clear();
+});
+
 describe('DashboardShell', () => {
   it('shows the AppBar when layout is appbar', async () => {
     (useDashboardLayout as jest.Mock).mockReturnValue('appbar');
@@ -59,9 +64,12 @@ describe('DashboardShell', () => {
         <DashboardShell />
       </NavigationContainer>,
     );
-    // 'Home' also appears as the AppBar tab label in this layout, so assert on the
-    // screen's own content (PlaceholderScreen's testID) rather than the ambiguous text.
-    expect(screen.getByTestId('placeholder-title').props.children).toBe('Home');
+    // Home now renders StreamDeckGrid with seeded categories.
+    // Assert on the seeded category to verify HomeScreen (with real StreamDeckGrid)
+    // is rendered, not a placeholder.
+    await waitFor(() => {
+      expect(screen.getByTestId('category-name-cat-obs')).toBeTruthy();
+    });
   });
 
   it('configures the drawer as permanent and swipe-enabled when layout is drawer', async () => {
