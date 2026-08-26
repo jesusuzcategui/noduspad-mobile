@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useDashboardLayout } from './useBreakpoint';
@@ -18,12 +18,19 @@ export function GlassDrawerContent({ state, navigation, descriptors }: DrawerCon
 
   return (
     <View style={styles.root}>
-      <BlurView
-        style={StyleSheet.absoluteFill}
-        blurType={blur.drawerType}
-        blurAmount={blur.drawerAmount}
-        reducedTransparencyFallbackColor={color.voidBottom}
-      />
+      {/* @react-native-community/blur has no true native blur on Android — it falls
+          back to compositing a near-opaque dark layer, and (per this component's own
+          history) does not reliably respect its parent's bounds there either, so it
+          can paint over content well outside the drawer. iOS has a real backdrop
+          blur, so keep it there only; Android keeps the solid `tint` below. */}
+      {Platform.OS === 'ios' && (
+        <BlurView
+          style={StyleSheet.absoluteFill}
+          blurType={blur.drawerType}
+          blurAmount={blur.drawerAmount}
+          reducedTransparencyFallbackColor={color.voidBottom}
+        />
+      )}
       <View style={[StyleSheet.absoluteFill, styles.tint]} />
       <View style={styles.items}>
         {state.routes.map((route, index) => {

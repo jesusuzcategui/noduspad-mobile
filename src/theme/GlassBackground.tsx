@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { BlurView } from '@react-native-community/blur';
 import { color } from './glass';
@@ -16,12 +16,18 @@ export function GlassBackground({ children }: { children: React.ReactNode }) {
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <View style={[styles.glow, styles.glowBlue]} />
         <View style={[styles.glow, styles.glowViolet]} />
-        <BlurView
-          style={StyleSheet.absoluteFill}
-          blurType="dark"
-          blurAmount={80}
-          reducedTransparencyFallbackColor={color.voidTop}
-        />
+        {/* @react-native-community/blur has no true native blur on Android — it falls
+            back to compositing a near-opaque dark layer that renders on top of the
+            content below (not just the gradient behind it), washing out every screen.
+            iOS has a real backdrop blur, so keep it there only. */}
+        {Platform.OS === 'ios' && (
+          <BlurView
+            style={StyleSheet.absoluteFill}
+            blurType="dark"
+            blurAmount={80}
+            reducedTransparencyFallbackColor={color.voidTop}
+          />
+        )}
       </View>
       <View style={styles.content}>{children}</View>
     </View>

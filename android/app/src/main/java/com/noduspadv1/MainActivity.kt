@@ -1,5 +1,8 @@
 package com.noduspadv1
 
+import android.os.Build
+import android.os.Bundle
+import androidx.core.view.WindowCompat
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -19,4 +22,19 @@ class MainActivity : ReactActivity() {
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    // With edgeToEdgeEnabled=true (gradle.properties), targetSdk 35+ ignores the
+    // AppTheme's android:navigationBarColor/windowLightNavigationBar and instead
+    // paints its own contrast-enforcement scrim over the nav bar, which reads as a
+    // washed-out light strip against our dark theme. Disabling contrast enforcement
+    // lets our dark content show through, and light (non-dark) nav bar icons keep
+    // them visible against it.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      window.isNavigationBarContrastEnforced = false
+    }
+    WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars =
+        false
+  }
 }
