@@ -3,6 +3,7 @@ import { render } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PlaceholderScreen } from './PlaceholderScreen';
+import { EditModeProvider } from '../streamdeck/EditModeContext';
 
 // PlaceholderScreen renders ScreenWithAppBar, which calls useRoute()/useNavigation()
 // and therefore must be mounted inside an actual navigator screen (not just a bare
@@ -12,11 +13,13 @@ const Stack = createNativeStackNavigator();
 describe('PlaceholderScreen', () => {
   it('renders the given title', async () => {
     const { getByTestId } = await render(
-      <NavigationContainer>
-        <Stack.Navigator>
-          <Stack.Screen name="Home">{() => <PlaceholderScreen title="Home" />}</Stack.Screen>
-        </Stack.Navigator>
-      </NavigationContainer>,
+      <EditModeProvider>
+        <NavigationContainer>
+          <Stack.Navigator>
+            <Stack.Screen name="Home">{() => <PlaceholderScreen title="Home" />}</Stack.Screen>
+          </Stack.Navigator>
+        </NavigationContainer>
+      </EditModeProvider>,
     );
     expect(getByTestId('placeholder-title').props.children).toBe('Home');
   });

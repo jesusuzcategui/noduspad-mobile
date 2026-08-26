@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassPanel } from '../theme/GlassPanel';
+import { useEditMode } from '../streamdeck/EditModeContext';
 import { blur, color, radius, space, type } from '../theme/glass';
 
 export type DashboardRouteName = 'Home' | 'Settings' | 'About';
@@ -15,6 +16,7 @@ type AppBarProps = {
 
 export function AppBar({ activeRoute, onNavigate }: AppBarProps) {
   const insets = useSafeAreaInsets();
+  const { isEditMode, toggleEditMode } = useEditMode();
 
   return (
     <View style={[styles.floatWrap, { paddingBottom: insets.bottom + space.md }]}>
@@ -36,6 +38,11 @@ export function AppBar({ activeRoute, onNavigate }: AppBarProps) {
             </Pressable>
           );
         })}
+        <Pressable testID="appbar-edit-mode-toggle" style={styles.item} onPress={toggleEditMode}>
+          <View style={[styles.pill, isEditMode && styles.pillActive]}>
+            <Text style={isEditMode ? styles.activeLabel : styles.label}>Editar</Text>
+          </View>
+        </Pressable>
       </GlassPanel>
     </View>
   );

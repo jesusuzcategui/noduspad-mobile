@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import OBSWebSocket from 'obs-websocket-js';
 import { SettingsScreen } from './SettingsScreen';
+import { EditModeProvider } from '../streamdeck/EditModeContext';
 
 jest.mock('obs-websocket-js', () => {
   return jest.fn().mockImplementation(() => ({
@@ -21,11 +22,13 @@ const Stack = createNativeStackNavigator();
 
 function renderSettingsScreen() {
   return render(
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Settings">{() => <SettingsScreen />}</Stack.Screen>
-      </Stack.Navigator>
-    </NavigationContainer>,
+    <EditModeProvider>
+      <NavigationContainer>
+        <Stack.Navigator>
+          <Stack.Screen name="Settings">{() => <SettingsScreen />}</Stack.Screen>
+        </Stack.Navigator>
+      </NavigationContainer>
+    </EditModeProvider>,
   );
 }
 
