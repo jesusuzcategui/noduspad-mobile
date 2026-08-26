@@ -3,7 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SEED_STATE } from './seedData';
 import type { StreamDeckState } from './types';
 
-const STORAGE_KEY = 'streamdeck-state-v1';
+// v2: buttons gained a required `icon` field. Bumping the key invalidates any
+// state persisted by earlier builds instead of crashing on stale button shapes.
+const STORAGE_KEY = 'streamdeck-state-v2';
 
 async function persist(state: StreamDeckState): Promise<void> {
   try {

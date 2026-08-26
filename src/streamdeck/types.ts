@@ -1,6 +1,9 @@
+import type { StreamDeckIconName } from './StreamDeckIcon';
+
 export type StreamDeckButton = {
   id: string;
   label: string;
+  icon: StreamDeckIconName;
   iconColor: string;
   background: { type: 'color'; color: string } | { type: 'image'; uri: string };
   action: { type: 'obs' | 'command'; label: string };

@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StreamDeckGrid } from './StreamDeckGrid';
 import { SEED_STATE } from './seedData';
 
-const STORAGE_KEY = 'streamdeck-state-v1';
+const STORAGE_KEY = 'streamdeck-state-v2';
 
 beforeEach(async () => {
   await AsyncStorage.clear();

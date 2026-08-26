@@ -1,7 +1,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { StreamDeckIcon } from './StreamDeckIcon';
 import type { StreamDeckButton } from './types';
-import { radius, type } from '../theme/glass';
+import { radius, space, type } from '../theme/glass';
 
 type StreamDeckButtonTileProps = {
   button: StreamDeckButton;
@@ -33,6 +34,7 @@ export function StreamDeckButtonTile({
         backgroundStyle,
         pressed && styles.pressed,
       ]}>
+      <StreamDeckIcon name={button.icon} size={28} color={button.iconColor} />
       <Text style={[styles.label, { color: button.iconColor }]} numberOfLines={2}>
         {button.label}
       </Text>
@@ -54,5 +56,6 @@ const styles = StyleSheet.create({
   label: {
     ...type.label,
     textAlign: 'center',
+    marginTop: space.xs,
   },
 });

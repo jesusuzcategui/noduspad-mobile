@@ -10,6 +10,7 @@ export const SEED_STATE: StreamDeckState = {
     'btn-scene-1': {
       id: 'btn-scene-1',
       label: 'Escena 1',
+      icon: 'movie-outline',
       iconColor: '#ffffff',
       background: { type: 'color', color: '#3a7bfd' },
       action: { type: 'obs', label: 'Cambiar a Escena 1' },
@@ -17,6 +18,7 @@ export const SEED_STATE: StreamDeckState = {
     'btn-scene-2': {
       id: 'btn-scene-2',
       label: 'Escena 2',
+      icon: 'movie-outline',
       iconColor: '#ffffff',
       background: { type: 'color', color: '#2f9e6f' },
       action: { type: 'obs', label: 'Cambiar a Escena 2' },
@@ -24,6 +26,7 @@ export const SEED_STATE: StreamDeckState = {
     'btn-mute-mic': {
       id: 'btn-mute-mic',
       label: 'Mic',
+      icon: 'microphone',
       iconColor: '#ffffff',
       background: { type: 'color', color: '#d9534f' },
       action: { type: 'obs', label: 'Silenciar micrófono' },
@@ -31,6 +34,7 @@ export const SEED_STATE: StreamDeckState = {
     'btn-toggle-cam': {
       id: 'btn-toggle-cam',
       label: 'Cámara',
+      icon: 'camera',
       iconColor: '#ffffff',
       background: { type: 'color', color: '#9b59b6' },
       action: { type: 'obs', label: 'Alternar cámara' },
@@ -38,6 +42,7 @@ export const SEED_STATE: StreamDeckState = {
     'btn-lock-screen': {
       id: 'btn-lock-screen',
       label: 'Bloquear',
+      icon: 'lock-outline',
       iconColor: '#ffffff',
       background: { type: 'color', color: '#5a6270' },
       action: { type: 'command', label: 'Bloquear pantalla' },
@@ -45,6 +50,7 @@ export const SEED_STATE: StreamDeckState = {
     'btn-open-terminal': {
       id: 'btn-open-terminal',
       label: 'Terminal',
+      icon: 'console',
       iconColor: '#ffffff',
       background: { type: 'color', color: '#1a1a1a' },
       action: { type: 'command', label: 'Abrir terminal' },
