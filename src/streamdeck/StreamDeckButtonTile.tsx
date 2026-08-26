@@ -2,7 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { StreamDeckIcon } from './StreamDeckIcon';
 import type { StreamDeckButton } from './types';
-import { radius, space, type } from '../theme/glass';
+import { useGridAppearance } from '../theme/GridAppearanceContext';
+import { space, type } from '../theme/glass';
 
 type StreamDeckButtonTileProps = {
   button: StreamDeckButton;
@@ -19,6 +20,7 @@ export function StreamDeckButtonTile({
   onLongPress,
   disabled,
 }: StreamDeckButtonTileProps) {
+  const { borderRadius } = useGridAppearance();
   const backgroundStyle =
     button.background.type === 'color' ? { backgroundColor: button.background.color } : undefined;
 
@@ -30,7 +32,7 @@ export function StreamDeckButtonTile({
       disabled={disabled}
       style={({ pressed }) => [
         styles.tile,
-        { width, height: width },
+        { width, height: width, borderRadius },
         backgroundStyle,
         pressed && styles.pressed,
       ]}>
@@ -44,7 +46,6 @@ export function StreamDeckButtonTile({
 
 const styles = StyleSheet.create({
   tile: {
-    borderRadius: radius.chip,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 8,

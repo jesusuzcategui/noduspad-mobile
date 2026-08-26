@@ -1,14 +1,17 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useDashboardLayout } from './useBreakpoint';
 import { useEditMode } from '../streamdeck/EditModeContext';
-import { blur, color, radius, space, type } from '../theme/glass';
+import { useTheme } from '../theme/ThemeContext';
+import { blur, blurTypeForScheme, radius, space, type } from '../theme/glass';
 
 export function GlassDrawerContent({ state, navigation, descriptors }: DrawerContentComponentProps) {
   const layout = useDashboardLayout();
   const { isEditMode, toggleEditMode } = useEditMode();
+  const { scheme, colors: color } = useTheme();
+  const styles = createStyles(color);
 
   // In 'appbar' mode the drawer is zero-width and meant to stay invisible until
   // swiped open. Android's native BlurView does not reliably respect a zero-width
@@ -17,6 +20,8 @@ export function GlassDrawerContent({ state, navigation, descriptors }: DrawerCon
   if (layout !== 'drawer') {
     return null;
   }
+
+  const activeRouteName = state.routes[state.index].name;
 
   return (
     <View style={styles.root}>
@@ -28,13 +33,22 @@ export function GlassDrawerContent({ state, navigation, descriptors }: DrawerCon
       {Platform.OS === 'ios' && (
         <BlurView
           style={StyleSheet.absoluteFill}
-          blurType={blur.drawerType}
+          blurType={blurTypeForScheme(scheme)}
           blurAmount={blur.drawerAmount}
           reducedTransparencyFallbackColor={color.voidBottom}
         />
       )}
       <View style={[StyleSheet.absoluteFill, styles.tint]} />
       <View style={styles.items}>
+        <View style={styles.logoWrap}>
+          <Image
+            testID="drawer-logo"
+            source={require('../assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
+
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const label = options.drawerLabel ?? options.title ?? route.name;
@@ -53,68 +67,80 @@ export function GlassDrawerContent({ state, navigation, descriptors }: DrawerCon
           );
         })}
 
-        <Pressable
-          testID="drawer-edit-mode-toggle"
-          onPress={toggleEditMode}
-          style={[styles.item, styles.editModeItem, isEditMode && styles.itemActive]}>
-          <Text style={isEditMode ? styles.labelActive : styles.label}>Modo edición</Text>
-          <View style={[styles.editModeDot, isEditMode && styles.editModeDotActive]} />
-        </Pressable>
+        {activeRouteName === 'Home' && (
+          <Pressable
+            testID="drawer-edit-mode-toggle"
+            onPress={toggleEditMode}
+            style={[styles.item, styles.editModeItem, isEditMode && styles.itemActive]}>
+            <Text style={isEditMode ? styles.labelActive : styles.label}>Modo edición</Text>
+            <View style={[styles.editModeDot, isEditMode && styles.editModeDotActive]} />
+          </Pressable>
+        )}
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    borderRightWidth: 1,
-    borderRightColor: color.panelBorder,
-  },
-  tint: {
-    backgroundColor: color.panelFill,
-  },
-  items: {
-    flex: 1,
-    paddingTop: space.xxl,
-    paddingHorizontal: space.md,
-  },
-  item: {
-    paddingVertical: space.md,
-    paddingHorizontal: space.lg,
-    borderRadius: radius.chip,
-    marginBottom: space.xs,
-  },
-  itemActive: {
-    backgroundColor: color.panelFillPressed,
-    borderWidth: 1,
-    borderColor: color.panelHighlight,
-  },
-  label: {
-    ...type.body,
-    color: color.textSecondary,
-  },
-  labelActive: {
-    ...type.body,
-    color: color.textPrimary,
-    fontWeight: '700',
-  },
-  editModeItem: {
-    marginTop: space.xl,
-    borderTopWidth: 1,
-    borderTopColor: color.panelBorder,
-    paddingTop: space.lg + space.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  editModeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: color.textMuted,
-  },
-  editModeDotActive: {
-    backgroundColor: color.accent,
-  },
-});
+function createStyles(color: ReturnType<typeof useTheme>['colors']) {
+  return StyleSheet.create({
+    root: {
+      flex: 1,
+      borderRightWidth: 1,
+      borderRightColor: color.panelBorder,
+    },
+    tint: {
+      backgroundColor: color.panelFill,
+    },
+    items: {
+      flex: 1,
+      paddingTop: space.xl,
+      paddingHorizontal: space.md,
+    },
+    logoWrap: {
+      alignItems: 'center',
+      marginBottom: space.xl,
+    },
+    logo: {
+      width: 72,
+      height: 62,
+    },
+    item: {
+      paddingVertical: space.md,
+      paddingHorizontal: space.lg,
+      borderRadius: radius.chip,
+      marginBottom: space.xs,
+    },
+    itemActive: {
+      backgroundColor: color.panelFillPressed,
+      borderWidth: 1,
+      borderColor: color.panelHighlight,
+    },
+    label: {
+      ...type.body,
+      color: color.textSecondary,
+    },
+    labelActive: {
+      ...type.body,
+      color: color.textPrimary,
+      fontWeight: '700',
+    },
+    editModeItem: {
+      marginTop: space.xl,
+      borderTopWidth: 1,
+      borderTopColor: color.panelBorder,
+      paddingTop: space.lg + space.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    editModeDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: color.textMuted,
+    },
+    editModeDotActive: {
+      backgroundColor: color.accent,
+    },
+  });
+}

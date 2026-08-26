@@ -5,11 +5,14 @@ import { Plus } from 'lucide-react-native';
 import type { StreamDeckButton, StreamDeckCategory } from './types';
 import { StreamDeckButtonTile } from './StreamDeckButtonTile';
 import { computeItemWidth } from './useCarouselItemWidth';
-import { color, radius, space, type } from '../theme/glass';
+import { useThemeColors } from '../theme/ThemeContext';
+import { useGridAppearance } from '../theme/GridAppearanceContext';
+import { space, type } from '../theme/glass';
 
-const ITEM_GAP = space.md;
-
-const ItemSeparator = () => <View style={styles.separator} />;
+function ItemSeparator() {
+  const { gap } = useGridAppearance();
+  return <View style={{ width: gap }} />;
+}
 
 type CategoryRowProps = {
   category: StreamDeckCategory;
@@ -32,8 +35,11 @@ export function CategoryRow({
 }: CategoryRowProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [measuredWidth, setMeasuredWidth] = useState(0);
+  const color = useThemeColors();
+  const { gap, borderRadius } = useGridAppearance();
+  const styles = createStyles(color, gap);
   const itemWidth =
-    measuredWidth > 0 ? computeItemWidth(windowWidth, windowHeight, measuredWidth, ITEM_GAP) : 0;
+    measuredWidth > 0 ? computeItemWidth(windowWidth, windowHeight, measuredWidth, gap) : 0;
 
   const handleLayout = (event: LayoutChangeEvent) => {
     setMeasuredWidth(event.nativeEvent.layout.width);
@@ -85,7 +91,7 @@ export function CategoryRow({
               <Pressable
                 testID={`add-button-${category.id}`}
                 onPress={() => onAddButton(category.id)}
-                style={[styles.addTile, { width: itemWidth, height: itemWidth }]}>
+                style={[styles.addTile, { width: itemWidth, height: itemWidth, borderRadius }]}>
                 <Plus color={color.textSecondary} size={28} />
               </Pressable>
             ) : undefined
@@ -97,32 +103,30 @@ export function CategoryRow({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: space.lg,
-  },
-  name: {
-    ...type.title,
-    fontSize: 16,
-    color: color.textSecondary,
-    marginBottom: space.sm,
-    paddingHorizontal: space.lg,
-  },
-  list: {
-    paddingHorizontal: space.lg,
-  },
-  separator: {
-    width: ITEM_GAP,
-  },
-  footer: {
-    marginLeft: ITEM_GAP,
-  },
-  addTile: {
-    borderRadius: radius.chip,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: color.inputBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+function createStyles(color: ReturnType<typeof useThemeColors>, gap: number) {
+  return StyleSheet.create({
+    container: {
+      marginBottom: space.lg,
+    },
+    name: {
+      ...type.title,
+      fontSize: 16,
+      color: color.textSecondary,
+      marginBottom: space.sm,
+      paddingHorizontal: space.lg,
+    },
+    list: {
+      paddingHorizontal: space.lg,
+    },
+    footer: {
+      marginLeft: gap,
+    },
+    addTile: {
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: color.inputBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
+}

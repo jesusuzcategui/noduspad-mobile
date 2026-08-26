@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ALL_ICON_NAMES, StreamDeckIcon, type StreamDeckIconName } from './StreamDeckIcon';
-import { color, radius, space, type } from '../theme/glass';
+import { useThemeColors } from '../theme/ThemeContext';
+import { radius, space, type } from '../theme/glass';
 
 // PascalCase icon name -> spaced label, e.g. "AlarmClock" -> "Alarm Clock".
 function toLabel(name: string): string {
@@ -16,6 +17,8 @@ type IconPickerModalProps = {
 
 export function IconPickerModal({ visible, onClose, onSelect }: IconPickerModalProps) {
   const [query, setQuery] = useState('');
+  const color = useThemeColors();
+  const styles = createStyles(color);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -71,7 +74,8 @@ export function IconPickerModal({ visible, onClose, onSelect }: IconPickerModalP
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(color: ReturnType<typeof useThemeColors>) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -142,4 +146,5 @@ const styles = StyleSheet.create({
     ...type.label,
     color: color.textSecondary,
   },
-});
+  });
+}

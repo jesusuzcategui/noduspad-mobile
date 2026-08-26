@@ -4,41 +4,57 @@
  */
 
 import 'react-native-gesture-handler';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer, DarkTheme, Theme } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, DefaultTheme, Theme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/auth/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { GlassBackground } from './src/theme/GlassBackground';
-import { color } from './src/theme/glass';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { GridAppearanceProvider } from './src/theme/GridAppearanceContext';
 
-const navigationTheme: Theme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    primary: color.accent,
-    background: 'transparent',
-    card: 'transparent',
-    text: color.textPrimary,
-    border: color.panelBorder,
-    notification: color.danger,
-  },
-};
+function AppShell() {
+  const { scheme, colors } = useTheme();
+
+  const navigationTheme: Theme = useMemo(() => {
+    const base = scheme === 'light' ? DefaultTheme : DarkTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: colors.accent,
+        background: 'transparent',
+        card: 'transparent',
+        text: colors.textPrimary,
+        border: colors.panelBorder,
+        notification: colors.danger,
+      },
+    };
+  }, [scheme, colors]);
+
+  return (
+    <GlassBackground>
+      <AuthProvider>
+        <StatusBar barStyle={scheme === 'light' ? 'dark-content' : 'light-content'} />
+        <NavigationContainer theme={navigationTheme}>
+          <RootNavigator />
+        </NavigationContainer>
+      </AuthProvider>
+    </GlassBackground>
+  );
+}
 
 function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <GlassBackground>
-          <AuthProvider>
-            <StatusBar barStyle="light-content" />
-            <NavigationContainer theme={navigationTheme}>
-              <RootNavigator />
-            </NavigationContainer>
-          </AuthProvider>
-        </GlassBackground>
+        <ThemeProvider>
+          <GridAppearanceProvider>
+            <AppShell />
+          </GridAppearanceProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

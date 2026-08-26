@@ -2,12 +2,15 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { AuthProvider } from '../auth/AuthContext';
 import { LoginScreen } from './LoginScreen';
+import { AllThemeProviders } from '../testUtils/AllThemeProviders';
 
 async function renderLogin() {
   return render(
-    <AuthProvider>
-      <LoginScreen />
-    </AuthProvider>,
+    <AllThemeProviders>
+      <AuthProvider>
+        <LoginScreen />
+      </AuthProvider>
+    </AllThemeProviders>,
   );
 }
 

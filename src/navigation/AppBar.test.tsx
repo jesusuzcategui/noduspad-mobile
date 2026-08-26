@@ -3,14 +3,17 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppBar } from './AppBar';
 import { EditModeProvider, useEditMode } from '../streamdeck/EditModeContext';
+import { AllThemeProviders } from '../testUtils/AllThemeProviders';
 
 function renderAppBar(activeRoute: 'Home' | 'Settings' | 'About', onNavigate: (route: string) => void) {
   return render(
-    <SafeAreaProvider>
-      <EditModeProvider>
-        <AppBar activeRoute={activeRoute} onNavigate={onNavigate} />
-      </EditModeProvider>
-    </SafeAreaProvider>,
+    <AllThemeProviders>
+      <SafeAreaProvider>
+        <EditModeProvider>
+          <AppBar activeRoute={activeRoute} onNavigate={onNavigate} />
+        </EditModeProvider>
+      </SafeAreaProvider>
+    </AllThemeProviders>,
   );
 }
 
@@ -29,6 +32,22 @@ describe('AppBar', () => {
     expect(onNavigate).toHaveBeenCalledWith('Settings');
   });
 
+  it('shows the Editar pill only when Home is the active route', async () => {
+    const { getByTestId, queryByTestId, rerender } = await renderAppBar('Home', () => {});
+    expect(getByTestId('appbar-edit-mode-toggle')).toBeTruthy();
+
+    await rerender(
+      <AllThemeProviders>
+        <SafeAreaProvider>
+          <EditModeProvider>
+            <AppBar activeRoute="Settings" onNavigate={() => {}} />
+          </EditModeProvider>
+        </SafeAreaProvider>
+      </AllThemeProviders>,
+    );
+    expect(queryByTestId('appbar-edit-mode-toggle')).toBeNull();
+  });
+
   it('toggles edit mode when the Editar pill is pressed', async () => {
     const latest: { isEditMode: boolean } = { isEditMode: false };
     function Spy() {
@@ -37,12 +56,14 @@ describe('AppBar', () => {
     }
 
     const { getByTestId } = await render(
-      <SafeAreaProvider>
-        <EditModeProvider>
-          <AppBar activeRoute="Home" onNavigate={() => {}} />
-          <Spy />
-        </EditModeProvider>
-      </SafeAreaProvider>,
+      <AllThemeProviders>
+        <SafeAreaProvider>
+          <EditModeProvider>
+            <AppBar activeRoute="Home" onNavigate={() => {}} />
+            <Spy />
+          </EditModeProvider>
+        </SafeAreaProvider>
+      </AllThemeProviders>,
     );
 
     expect(latest.isEditMode).toBe(false);

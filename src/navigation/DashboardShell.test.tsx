@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DashboardShell } from './DashboardShell';
+import { AllThemeProviders } from '../testUtils/AllThemeProviders';
 
 // @react-navigation/drawer pulls in react-native-drawer-layout -> react-native-reanimated
 // -> react-native-worklets, which requires the real native worklets runtime and cannot
@@ -40,9 +41,11 @@ describe('DashboardShell', () => {
   it('shows the AppBar when layout is appbar', async () => {
     (useDashboardLayout as jest.Mock).mockReturnValue('appbar');
     await render(
-      <NavigationContainer>
-        <DashboardShell />
-      </NavigationContainer>,
+      <AllThemeProviders>
+        <NavigationContainer>
+          <DashboardShell />
+        </NavigationContainer>
+      </AllThemeProviders>,
     );
     expect(screen.getByTestId('appbar-Home')).toBeTruthy();
   });
@@ -50,9 +53,11 @@ describe('DashboardShell', () => {
   it('hides the AppBar when layout is drawer', async () => {
     (useDashboardLayout as jest.Mock).mockReturnValue('drawer');
     await render(
-      <NavigationContainer>
-        <DashboardShell />
-      </NavigationContainer>,
+      <AllThemeProviders>
+        <NavigationContainer>
+          <DashboardShell />
+        </NavigationContainer>
+      </AllThemeProviders>,
     );
     expect(screen.queryByTestId('appbar-Home')).toBeNull();
   });
@@ -60,9 +65,11 @@ describe('DashboardShell', () => {
   it('renders the Home screen by default', async () => {
     (useDashboardLayout as jest.Mock).mockReturnValue('appbar');
     await render(
-      <NavigationContainer>
-        <DashboardShell />
-      </NavigationContainer>,
+      <AllThemeProviders>
+        <NavigationContainer>
+          <DashboardShell />
+        </NavigationContainer>
+      </AllThemeProviders>,
     );
     // Home now renders StreamDeckGrid with seeded categories.
     // Assert on the seeded category to verify HomeScreen (with real StreamDeckGrid)
@@ -75,9 +82,11 @@ describe('DashboardShell', () => {
   it('configures the drawer as permanent and swipe-enabled when layout is drawer', async () => {
     (useDashboardLayout as jest.Mock).mockReturnValue('drawer');
     await render(
-      <NavigationContainer>
-        <DashboardShell />
-      </NavigationContainer>,
+      <AllThemeProviders>
+        <NavigationContainer>
+          <DashboardShell />
+        </NavigationContainer>
+      </AllThemeProviders>,
     );
     expect(capturedScreenOptions.drawerType).toBe('permanent');
     expect(capturedScreenOptions.swipeEnabled).toBe(true);
@@ -87,9 +96,11 @@ describe('DashboardShell', () => {
   it('configures the drawer as front/zero-width and swipe-disabled when layout is appbar', async () => {
     (useDashboardLayout as jest.Mock).mockReturnValue('appbar');
     await render(
-      <NavigationContainer>
-        <DashboardShell />
-      </NavigationContainer>,
+      <AllThemeProviders>
+        <NavigationContainer>
+          <DashboardShell />
+        </NavigationContainer>
+      </AllThemeProviders>,
     );
     expect(capturedScreenOptions.drawerType).toBe('front');
     expect(capturedScreenOptions.swipeEnabled).toBe(false);

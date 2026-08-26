@@ -6,6 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import OBSWebSocket from 'obs-websocket-js';
 import { SettingsScreen } from './SettingsScreen';
 import { EditModeProvider } from '../streamdeck/EditModeContext';
+import { AllThemeProviders } from '../testUtils/AllThemeProviders';
+import { useTheme } from '../theme/ThemeContext';
+import { useGridAppearance } from '../theme/GridAppearanceContext';
 
 jest.mock('obs-websocket-js', () => {
   return jest.fn().mockImplementation(() => ({
@@ -22,13 +25,15 @@ const Stack = createNativeStackNavigator();
 
 function renderSettingsScreen() {
   return render(
-    <EditModeProvider>
-      <NavigationContainer>
-        <Stack.Navigator>
-          <Stack.Screen name="Settings">{() => <SettingsScreen />}</Stack.Screen>
-        </Stack.Navigator>
-      </NavigationContainer>
-    </EditModeProvider>,
+    <AllThemeProviders>
+      <EditModeProvider>
+        <NavigationContainer>
+          <Stack.Navigator>
+            <Stack.Screen name="Settings">{() => <SettingsScreen />}</Stack.Screen>
+          </Stack.Navigator>
+        </NavigationContainer>
+      </EditModeProvider>
+    </AllThemeProviders>,
   );
 }
 
@@ -97,5 +102,89 @@ describe('SettingsScreen', () => {
     await waitFor(() => {
       expect(getByTestId('obs-error').props.children).toBe('Authentication failed');
     });
+  });
+
+  it('switches to the Apariencia tab and hides the OBS form', async () => {
+    const { getByTestId, queryByTestId } = await renderSettingsScreen();
+    await waitFor(() => {
+      expect(getByTestId('obs-host')).toBeTruthy();
+    });
+
+    await fireEvent.press(getByTestId('settings-tab-appearance'));
+
+    expect(queryByTestId('obs-host')).toBeNull();
+    expect(getByTestId('theme-mode-system')).toBeTruthy();
+  });
+
+  it('changes the theme mode when a mode pill is pressed', async () => {
+    const latest: { mode: string } = { mode: '' };
+    function Spy() {
+      latest.mode = useTheme().mode;
+      return null;
+    }
+
+    const { getByTestId } = await render(
+      <AllThemeProviders>
+        <EditModeProvider>
+          <NavigationContainer>
+            <Stack.Navigator>
+              <Stack.Screen name="Settings">
+                {() => (
+                  <>
+                    <SettingsScreen />
+                    <Spy />
+                  </>
+                )}
+              </Stack.Screen>
+            </Stack.Navigator>
+          </NavigationContainer>
+        </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await fireEvent.press(getByTestId('settings-tab-appearance'));
+    await fireEvent.press(getByTestId('theme-mode-light'));
+
+    expect(latest.mode).toBe('light');
+  });
+
+  it('adjusts the grid gap and border radius with the steppers', async () => {
+    const latest: { gap: number; borderRadius: number } = { gap: 0, borderRadius: 0 };
+    function Spy() {
+      const appearance = useGridAppearance();
+      latest.gap = appearance.gap;
+      latest.borderRadius = appearance.borderRadius;
+      return null;
+    }
+
+    const { getByTestId } = await render(
+      <AllThemeProviders>
+        <EditModeProvider>
+          <NavigationContainer>
+            <Stack.Navigator>
+              <Stack.Screen name="Settings">
+                {() => (
+                  <>
+                    <SettingsScreen />
+                    <Spy />
+                  </>
+                )}
+              </Stack.Screen>
+            </Stack.Navigator>
+          </NavigationContainer>
+        </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await fireEvent.press(getByTestId('settings-tab-appearance'));
+
+    const initialGap = latest.gap;
+    const initialRadius = latest.borderRadius;
+
+    await fireEvent.press(getByTestId('grid-gap-increment'));
+    expect(latest.gap).toBe(initialGap + 2);
+
+    await fireEvent.press(getByTestId('grid-radius-decrement'));
+    expect(latest.borderRadius).toBe(initialRadius - 2);
   });
 });
