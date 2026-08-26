@@ -29,3 +29,43 @@ export async function fetchOBSScenes(): Promise<string[]> {
     await socket.disconnect();
   }
 }
+
+// Reused across button presses so each tap doesn't pay the connect handshake
+// cost again; reconnects lazily the next time a command is executed.
+let sharedSocket: OBSWebSocket | null = null;
+
+async function getSharedSocket(): Promise<OBSWebSocket> {
+  if (sharedSocket) return sharedSocket;
+  const config = await loadOBSConfig();
+  const socket = new OBSWebSocket();
+  await socket.connect(`ws://${config.host}:${config.port}`, config.password || undefined);
+  socket.on('ConnectionClosed', () => {
+    sharedSocket = null;
+  });
+  sharedSocket = socket;
+  return socket;
+}
+
+export async function executeOBSCommand(command: OBSCommandKey, sceneName?: string): Promise<void> {
+  const socket = await getSharedSocket();
+  switch (command) {
+    case 'change-scene':
+      if (!sceneName) throw new Error('Este botón no tiene una escena seleccionada');
+      await socket.call('SetCurrentProgramScene', { sceneName });
+      return;
+    case 'start-record':
+      await socket.call('StartRecord');
+      return;
+    case 'stop-record':
+      await socket.call('StopRecord');
+      return;
+    case 'start-stream':
+      await socket.call('StartStream');
+      return;
+    case 'stop-stream':
+      await socket.call('StopStream');
+      return;
+    case 'toggle-mute':
+      throw new Error('Silenciar micrófono todavía no está soportado');
+  }
+}

@@ -14,8 +14,9 @@ import {
 import { QUICK_ICON_NAMES, StreamDeckIcon, type StreamDeckIconName } from './StreamDeckIcon';
 import { IconPickerModal } from './IconPickerModal';
 import { OBS_COMMANDS, fetchOBSScenes, type OBSCommandKey } from '../obs/obsCommands';
+import { useThemeColors } from '../theme/ThemeContext';
 import type { StreamDeckButton } from './types';
-import { color, radius, shadow, space, type } from '../theme/glass';
+import { radius, shadow, space, type } from '../theme/glass';
 
 const ICON_OPTIONS = QUICK_ICON_NAMES;
 
@@ -35,10 +36,13 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
   const [actionLabel, setActionLabel] = useState('');
   const [iconPickerVisible, setIconPickerVisible] = useState(false);
   const [commandKey, setCommandKey] = useState<OBSCommandKey | null>(null);
+  const [selectedScene, setSelectedScene] = useState<string | null>(null);
   const [scenes, setScenes] = useState<string[] | null>(null);
   const [scenesLoading, setScenesLoading] = useState(false);
   const [scenesError, setScenesError] = useState<string | null>(null);
   const isQuickIcon = (ICON_OPTIONS as string[]).includes(icon);
+  const color = useThemeColors();
+  const styles = createStyles(color);
 
   useEffect(() => {
     if (!button) return;
@@ -47,7 +51,8 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
     setBackgroundColor(button.background.type === 'color' ? button.background.color : COLOR_OPTIONS[0]);
     setActionType(button.action.type);
     setActionLabel(button.action.label);
-    setCommandKey(null);
+    setCommandKey(button.action.command ?? null);
+    setSelectedScene(button.action.sceneName ?? null);
     setScenes(null);
     setScenesError(null);
   }, [button]);
@@ -57,6 +62,7 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
     const command = OBS_COMMANDS.find(c => c.key === key)!;
     if (!command.needsScene) {
       setActionLabel(command.label);
+      setSelectedScene(null);
       return;
     }
     if (scenes) return;
@@ -75,7 +81,14 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
       label: label.trim() || button.label,
       icon,
       background: { type: 'color', color: backgroundColor },
-      action: { type: actionType, label: actionLabel.trim() || label.trim() || button.label },
+      action: {
+        type: actionType,
+        label: actionLabel.trim() || label.trim() || button.label,
+        ...(actionType === 'obs' && commandKey ? { command: commandKey } : {}),
+        ...(actionType === 'obs' && commandKey === 'change-scene' && selectedScene
+          ? { sceneName: selectedScene }
+          : {}),
+      },
     });
     onClose();
   };
@@ -205,14 +218,17 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
                             <Pressable
                               key={sceneName}
                               testID={`editor-scene-${sceneName}`}
-                              onPress={() => setActionLabel(`Cambiar a ${sceneName}`)}
+                              onPress={() => {
+                                setSelectedScene(sceneName);
+                                setActionLabel(`Cambiar a ${sceneName}`);
+                              }}
                               style={[
                                 styles.commandChip,
-                                actionLabel === `Cambiar a ${sceneName}` && styles.commandChipActive,
+                                selectedScene === sceneName && styles.commandChipActive,
                               ]}>
                               <Text
                                 style={
-                                  actionLabel === `Cambiar a ${sceneName}`
+                                  selectedScene === sceneName
                                     ? styles.commandChipTextActive
                                     : styles.commandChipText
                                 }>
@@ -252,7 +268,8 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(color: ReturnType<typeof useThemeColors>) {
+  return StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -424,4 +441,5 @@ const styles = StyleSheet.create({
     ...type.label,
     color: '#ffffff',
   },
-});
+  });
+}

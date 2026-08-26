@@ -6,8 +6,10 @@ import { useEditMode } from './EditModeContext';
 import { CategoryRow } from './CategoryRow';
 import { TapFeedbackBanner } from './TapFeedbackBanner';
 import { ButtonEditorModal } from './ButtonEditorModal';
+import { executeOBSCommand } from '../obs/obsCommands';
+import { useThemeColors } from '../theme/ThemeContext';
 import type { StreamDeckButton } from './types';
-import { color, space } from '../theme/glass';
+import { space } from '../theme/glass';
 
 const FEEDBACK_DURATION_MS = 1500;
 
@@ -15,9 +17,18 @@ export function StreamDeckGrid() {
   const { state, isLoading, reorderCategories, reorderButtonsInCategory, addButton, updateButton } =
     useStreamDeckState();
   const { isEditMode } = useEditMode();
+  const color = useThemeColors();
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const feedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editingButton, setEditingButton] = useState<StreamDeckButton | null>(null);
+
+  const showFeedback = useCallback((message: string) => {
+    setFeedbackMessage(message);
+    if (feedbackTimeout.current) {
+      clearTimeout(feedbackTimeout.current);
+    }
+    feedbackTimeout.current = setTimeout(() => setFeedbackMessage(null), FEEDBACK_DURATION_MS);
+  }, []);
 
   const handleButtonPress = useCallback(
     (button: StreamDeckButton) => {
@@ -26,16 +37,18 @@ export function StreamDeckGrid() {
         return;
       }
 
-      const message = `Ejecutaría: ${button.action.label}`;
-      console.log(message);
-      setFeedbackMessage(message);
-
-      if (feedbackTimeout.current) {
-        clearTimeout(feedbackTimeout.current);
+      if (button.action.type === 'obs' && button.action.command) {
+        showFeedback(`Ejecutando: ${button.action.label}`);
+        executeOBSCommand(button.action.command, button.action.sceneName).catch(err => {
+          const message = err instanceof Error ? err.message : 'No se pudo conectar a OBS';
+          showFeedback(`Error: ${message}`);
+        });
+        return;
       }
-      feedbackTimeout.current = setTimeout(() => setFeedbackMessage(null), FEEDBACK_DURATION_MS);
+
+      showFeedback(`No configurado: ${button.action.label}`);
     },
-    [isEditMode],
+    [isEditMode, showFeedback],
   );
 
   const handleAddButton = useCallback(

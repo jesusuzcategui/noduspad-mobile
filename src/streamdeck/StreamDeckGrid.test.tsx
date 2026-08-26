@@ -5,6 +5,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StreamDeckGrid } from './StreamDeckGrid';
 import { EditModeProvider, useEditMode } from './EditModeContext';
 import { SEED_STATE } from './seedData';
+import { executeOBSCommand } from '../obs/obsCommands';
+import { AllThemeProviders } from '../testUtils/AllThemeProviders';
+
+jest.mock('../obs/obsCommands', () => {
+  const actual = jest.requireActual('../obs/obsCommands');
+  return { ...actual, executeOBSCommand: jest.fn() };
+});
+
+const mockExecuteOBSCommand = executeOBSCommand as jest.MockedFunction<typeof executeOBSCommand>;
 
 // Renders StreamDeckGrid alongside a button that toggles edit mode on, so tests
 // can exercise the edit-mode tap behavior without a real drawer.
@@ -24,14 +33,17 @@ const STORAGE_KEY = 'streamdeck-state-v2';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
+  mockExecuteOBSCommand.mockReset();
 });
 
 describe('StreamDeckGrid', () => {
   it('renders every seeded category once loaded', async () => {
     await render(
+      <AllThemeProviders>
       <EditModeProvider>
         <StreamDeckGrid />
-      </EditModeProvider>,
+      </EditModeProvider>
+      </AllThemeProviders>,
     );
 
     await waitFor(() => {
@@ -40,11 +52,13 @@ describe('StreamDeckGrid', () => {
     expect(screen.getByTestId('category-name-cat-system')).toBeTruthy();
   });
 
-  it('shows tap feedback with the action label when a button is pressed', async () => {
+  it('shows "no configurado" for OBS buttons saved without a command', async () => {
     await render(
+      <AllThemeProviders>
       <EditModeProvider>
         <StreamDeckGrid />
-      </EditModeProvider>,
+      </EditModeProvider>
+      </AllThemeProviders>,
     );
 
     await waitFor(() => {
@@ -55,16 +69,86 @@ describe('StreamDeckGrid', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('tap-feedback-banner').props.children).toBe(
-        'Ejecutaría: Cambiar a Escena 1',
+        'No configurado: Cambiar a Escena 1',
       );
+    });
+    expect(mockExecuteOBSCommand).not.toHaveBeenCalled();
+  });
+
+  it('executes the stored OBS command when a configured button is pressed', async () => {
+    mockExecuteOBSCommand.mockResolvedValue(undefined);
+    const customState = {
+      ...SEED_STATE,
+      buttons: {
+        ...SEED_STATE.buttons,
+        'btn-scene-1': {
+          ...SEED_STATE.buttons['btn-scene-1'],
+          action: { type: 'obs' as const, label: 'Cambiar a YT2', command: 'change-scene' as const, sceneName: 'YT2' },
+        },
+      },
+    };
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(customState));
+
+    await render(
+      <AllThemeProviders>
+      <EditModeProvider>
+        <StreamDeckGrid />
+      </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('streamdeck-button-btn-scene-1')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('streamdeck-button-btn-scene-1'));
+
+    await waitFor(() => {
+      expect(mockExecuteOBSCommand).toHaveBeenCalledWith('change-scene', 'YT2');
+    });
+    expect(screen.getByTestId('tap-feedback-banner').props.children).toBe('Ejecutando: Cambiar a YT2');
+  });
+
+  it('shows an error banner when executing the OBS command fails', async () => {
+    mockExecuteOBSCommand.mockRejectedValue(new Error('No se pudo conectar a OBS'));
+    const customState = {
+      ...SEED_STATE,
+      buttons: {
+        ...SEED_STATE.buttons,
+        'btn-scene-1': {
+          ...SEED_STATE.buttons['btn-scene-1'],
+          action: { type: 'obs' as const, label: 'Cambiar a YT2', command: 'change-scene' as const, sceneName: 'YT2' },
+        },
+      },
+    };
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(customState));
+
+    await render(
+      <AllThemeProviders>
+      <EditModeProvider>
+        <StreamDeckGrid />
+      </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('streamdeck-button-btn-scene-1')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('streamdeck-button-btn-scene-1'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tap-feedback-banner').props.children).toBe('Error: No se pudo conectar a OBS');
     });
   });
 
   it('reorders only the dragged category buttons and persists the correct categoryId', async () => {
     await render(
+      <AllThemeProviders>
       <EditModeProvider>
         <StreamDeckGrid />
-      </EditModeProvider>,
+      </EditModeProvider>
+      </AllThemeProviders>,
     );
 
     await waitFor(() => {
@@ -90,9 +174,11 @@ describe('StreamDeckGrid', () => {
 
   it('creates a new button via the add-button tile and opens its editor', async () => {
     await render(
+      <AllThemeProviders>
       <EditModeProvider>
         <GridWithEditModeToggle />
-      </EditModeProvider>,
+      </EditModeProvider>
+      </AllThemeProviders>,
     );
 
     await waitFor(() => {
@@ -117,9 +203,11 @@ describe('StreamDeckGrid', () => {
 
   it('opens the button editor instead of running the action when edit mode is on', async () => {
     await render(
+      <AllThemeProviders>
       <EditModeProvider>
         <GridWithEditModeToggle />
-      </EditModeProvider>,
+      </EditModeProvider>
+      </AllThemeProviders>,
     );
 
     await waitFor(() => {

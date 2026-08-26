@@ -1,8 +1,10 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { ButtonEditorModal } from './ButtonEditorModal';
+import type { StreamDeckButton } from './types';
 import { SEED_STATE } from './seedData';
 import { fetchOBSScenes } from '../obs/obsCommands';
+import { AllThemeProviders } from '../testUtils/AllThemeProviders';
 
 jest.mock('../obs/obsCommands', () => {
   const actual = jest.requireActual('../obs/obsCommands');
@@ -13,22 +15,30 @@ const mockFetchOBSScenes = fetchOBSScenes as jest.MockedFunction<typeof fetchOBS
 
 const button = SEED_STATE.buttons['btn-scene-1'];
 
+function renderModal(props: {
+  button: StreamDeckButton | null;
+  onClose: () => void;
+  onSave: (buttonId: string, updates: Partial<StreamDeckButton>) => void;
+}) {
+  return render(
+    <AllThemeProviders>
+      <ButtonEditorModal {...props} />
+    </AllThemeProviders>,
+  );
+}
+
 beforeEach(() => {
   mockFetchOBSScenes.mockReset();
 });
 
 describe('ButtonEditorModal', () => {
   it('renders nothing when no button is given', async () => {
-    const { toJSON } = await render(
-      <ButtonEditorModal button={null} onClose={jest.fn()} onSave={jest.fn()} />,
-    );
+    const { toJSON } = await renderModal({ button: null, onClose: jest.fn(), onSave: jest.fn() });
     expect(toJSON()).toBeNull();
   });
 
   it('pre-fills the form with the given button', async () => {
-    const { getByTestId } = await render(
-      <ButtonEditorModal button={button} onClose={jest.fn()} onSave={jest.fn()} />,
-    );
+    const { getByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn() });
 
     expect(getByTestId('editor-label').props.value).toBe('Escena 1');
     expect(getByTestId('editor-action-label').props.value).toBe('Cambiar a Escena 1');
@@ -37,9 +47,7 @@ describe('ButtonEditorModal', () => {
   it('calls onSave with the edited fields and closes', async () => {
     const onSave = jest.fn();
     const onClose = jest.fn();
-    const { getByTestId } = await render(
-      <ButtonEditorModal button={button} onClose={onClose} onSave={onSave} />,
-    );
+    const { getByTestId } = await renderModal({ button, onClose, onSave });
 
     await fireEvent.changeText(getByTestId('editor-label'), 'Nueva Escena');
     await fireEvent.press(getByTestId('editor-icon-camera'));
@@ -61,9 +69,7 @@ describe('ButtonEditorModal', () => {
   });
 
   it('fills the action label when a non-scene OBS command is picked', async () => {
-    const { getByTestId } = await render(
-      <ButtonEditorModal button={button} onClose={jest.fn()} onSave={jest.fn()} />,
-    );
+    const { getByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn() });
 
     await fireEvent.press(getByTestId('editor-command-start-record'));
 
@@ -73,9 +79,7 @@ describe('ButtonEditorModal', () => {
   it('fetches live scenes for "Cambiar de escena" and fills the label on pick', async () => {
     mockFetchOBSScenes.mockResolvedValue(['Escena A', 'Escena B']);
 
-    const { getByTestId } = await render(
-      <ButtonEditorModal button={button} onClose={jest.fn()} onSave={jest.fn()} />,
-    );
+    const { getByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn() });
 
     await fireEvent.press(getByTestId('editor-command-change-scene'));
 
@@ -91,9 +95,7 @@ describe('ButtonEditorModal', () => {
   it('shows an error with retry when fetching scenes fails', async () => {
     mockFetchOBSScenes.mockRejectedValue(new Error('No se pudo conectar a OBS'));
 
-    const { getByTestId } = await render(
-      <ButtonEditorModal button={button} onClose={jest.fn()} onSave={jest.fn()} />,
-    );
+    const { getByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn() });
 
     await fireEvent.press(getByTestId('editor-command-change-scene'));
 
@@ -106,9 +108,7 @@ describe('ButtonEditorModal', () => {
   it('closes without saving when Cancelar is pressed', async () => {
     const onSave = jest.fn();
     const onClose = jest.fn();
-    const { getByTestId } = await render(
-      <ButtonEditorModal button={button} onClose={onClose} onSave={onSave} />,
-    );
+    const { getByTestId } = await renderModal({ button, onClose, onSave });
 
     await fireEvent.press(getByTestId('editor-cancel'));
 
