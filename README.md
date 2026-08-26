@@ -1,97 +1,81 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+<p align="center">
+  <img src="src/assets/logo.png" width="140" alt="Native Stream Deck logo" />
+</p>
 
-# Getting Started
+<h1 align="center">Native Stream Deck</h1>
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+<p align="center">
+  A DIY Stream Deck: trigger OBS actions from a spare Android tablet instead of buying dedicated hardware.
+</p>
 
-## Step 1: Start Metro
+## What it does
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+Native Stream Deck turns any Android tablet into a control surface for OBS. Buttons are
+organized into categories, each rendered as a horizontal carousel, and are fully
+customizable: icon (searchable Lucide picker with 2000+ icons), color, and action.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+Pressing a button in normal mode executes its action for real over `obs-websocket` — change
+scene, start/stop recording, start/stop streaming. Enabling **edit mode** (visible only on
+the Home screen) lets you rename buttons, restyle them, reassign their action, drag-reorder
+buttons and categories, and add new buttons on the fly.
+
+## Features
+
+- **Adaptive layout** — permanent drawer on tablet landscape, floating bottom app bar
+  everywhere else (phone, tablet portrait).
+- **Light / dark theme** — follows the system by default, or pin it manually in
+  Settings → Apariencia.
+- **Configurable button grid** — gap and border radius are user-adjustable, not hardcoded.
+- **Real OBS control** — `obs-websocket-js` (protocol v5), with the button editor pulling
+  live scene names straight from the connected OBS instance.
+- **Drag-and-drop** — reorder buttons within a category and categories within the grid.
+- **Persisted locally** — button layout, OBS connection, theme, and grid appearance all
+  survive app restarts via AsyncStorage.
+
+## Stack
+
+React Native · TypeScript · React Navigation (drawer + native-stack) · `obs-websocket-js` ·
+`react-native-draggable-flatlist` · `lucide-react-native` · Jest + Testing Library
+
+## Getting started
 
 ```sh
-# Using npm
+npm install
+
+# Metro (JS bundler)
 npm start
 
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+# Android
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+Requires the [React Native environment](https://reactnative.dev/docs/set-up-your-environment)
+set up for Android. OBS connection settings live in Settings → OBS once the app is running
+(defaults to `localhost:4455`, matching `obs-websocket`'s default port).
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+### Release build (no dev server needed)
 
 ```sh
-bundle install
+cd android
+./gradlew assembleRelease
 ```
 
-Then, and every time you update your native dependencies, run:
+The signed APK lands at `android/app/build/outputs/apk/release/app-release.apk` and runs
+standalone — no Metro, no USB tether required after install.
 
-```sh
-bundle exec pod install
+## Project structure
+
+```
+src/
+  auth/        mock login (single hardcoded user, no backend)
+  navigation/  drawer/app-bar shell, adaptive layout switch
+  obs/         obs-websocket connection, commands, scene fetching
+  screens/     Login, Home, Settings, About
+  streamdeck/  button grid, categories, editor, icon picker
+  theme/       light/dark tokens, glass panel, grid appearance settings
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## Status
 
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+Personal project, single confirmed user. Custom OS-level command execution (beyond OBS
+actions) is a planned sub-project — see `docs/specs/main.md`.
