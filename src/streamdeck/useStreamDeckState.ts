@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SEED_STATE } from './seedData';
-import type { StreamDeckState } from './types';
+import type { StreamDeckButton, StreamDeckState } from './types';
 
 // v2: buttons gained a required `icon` field. Bumping the key invalidates any
 // state persisted by earlier builds instead of crashing on stale button shapes.
@@ -93,5 +93,20 @@ export function useStreamDeckState() {
     });
   }, []);
 
-  return { state, isLoading, reorderCategories, reorderButtonsInCategory };
+  const updateButton = useCallback((buttonId: string, updates: Partial<StreamDeckButton>) => {
+    setState(prev => {
+      if (!prev || !prev.buttons[buttonId]) return prev;
+      const next = {
+        ...prev,
+        buttons: {
+          ...prev.buttons,
+          [buttonId]: { ...prev.buttons[buttonId], ...updates },
+        },
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  return { state, isLoading, reorderCategories, reorderButtonsInCategory, updateButton };
 }

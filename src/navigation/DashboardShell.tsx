@@ -5,6 +5,7 @@ import { GlassDrawerContent } from './GlassDrawerContent';
 import { HomeScreen } from '../screens/HomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { AboutScreen } from '../screens/AboutScreen';
+import { EditModeProvider } from '../streamdeck/EditModeContext';
 
 export type DashboardDrawerParamList = {
   Home: undefined;
@@ -19,17 +20,19 @@ export function DashboardShell() {
   const isDrawerLayout = layout === 'drawer';
 
   return (
-    <Drawer.Navigator
-      drawerContent={GlassDrawerContent}
-      screenOptions={{
-        headerShown: false,
-        drawerType: isDrawerLayout ? 'permanent' : 'front',
-        drawerStyle: isDrawerLayout ? { width: 260 } : { width: 0 },
-        swipeEnabled: isDrawerLayout,
-      }}>
-      <Drawer.Screen name="Home" component={HomeScreen} />
-      <Drawer.Screen name="Settings" component={SettingsScreen} />
-      <Drawer.Screen name="About" component={AboutScreen} />
-    </Drawer.Navigator>
+    <EditModeProvider>
+      <Drawer.Navigator
+        drawerContent={GlassDrawerContent}
+        screenOptions={{
+          headerShown: false,
+          drawerType: isDrawerLayout ? 'permanent' : 'front',
+          drawerStyle: isDrawerLayout ? { width: 260 } : { width: 0 },
+          swipeEnabled: isDrawerLayout,
+        }}>
+        <Drawer.Screen name="Home" component={HomeScreen} />
+        <Drawer.Screen name="Settings" component={SettingsScreen} />
+        <Drawer.Screen name="About" component={AboutScreen} />
+      </Drawer.Navigator>
+    </EditModeProvider>
   );
 }

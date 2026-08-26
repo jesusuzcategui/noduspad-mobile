@@ -2,28 +2,40 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { useStreamDeckState } from './useStreamDeckState';
+import { useEditMode } from './EditModeContext';
 import { CategoryRow } from './CategoryRow';
 import { TapFeedbackBanner } from './TapFeedbackBanner';
+import { ButtonEditorModal } from './ButtonEditorModal';
 import type { StreamDeckButton } from './types';
 import { color, space } from '../theme/glass';
 
 const FEEDBACK_DURATION_MS = 1500;
 
 export function StreamDeckGrid() {
-  const { state, isLoading, reorderCategories, reorderButtonsInCategory } = useStreamDeckState();
+  const { state, isLoading, reorderCategories, reorderButtonsInCategory, updateButton } = useStreamDeckState();
+  const { isEditMode } = useEditMode();
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const feedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [editingButton, setEditingButton] = useState<StreamDeckButton | null>(null);
 
-  const handleButtonPress = useCallback((button: StreamDeckButton) => {
-    const message = `Ejecutaría: ${button.action.label}`;
-    console.log(message);
-    setFeedbackMessage(message);
+  const handleButtonPress = useCallback(
+    (button: StreamDeckButton) => {
+      if (isEditMode) {
+        setEditingButton(button);
+        return;
+      }
 
-    if (feedbackTimeout.current) {
-      clearTimeout(feedbackTimeout.current);
-    }
-    feedbackTimeout.current = setTimeout(() => setFeedbackMessage(null), FEEDBACK_DURATION_MS);
-  }, []);
+      const message = `Ejecutaría: ${button.action.label}`;
+      console.log(message);
+      setFeedbackMessage(message);
+
+      if (feedbackTimeout.current) {
+        clearTimeout(feedbackTimeout.current);
+      }
+      feedbackTimeout.current = setTimeout(() => setFeedbackMessage(null), FEEDBACK_DURATION_MS);
+    },
+    [isEditMode],
+  );
 
   useEffect(() => {
     return () => {
@@ -60,6 +72,11 @@ export function StreamDeckGrid() {
         )}
       />
       <TapFeedbackBanner message={feedbackMessage} />
+      <ButtonEditorModal
+        button={editingButton}
+        onClose={() => setEditingButton(null)}
+        onSave={(buttonId, updates) => updateButton(buttonId, updates)}
+      />
     </View>
   );
 }

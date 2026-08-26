@@ -76,6 +76,42 @@ describe('useStreamDeckState', () => {
     expect(JSON.parse(stored as string).categories[categoryId].buttonIds).toEqual(reversed);
   });
 
+  it('updateButton merges the given fields and persists them', async () => {
+    const { result } = await renderHook(() => useStreamDeckState());
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    const buttonId = 'btn-scene-1';
+
+    await act(async () => {
+      result.current.updateButton(buttonId, { label: 'Escena Renombrada', icon: 'camera' });
+    });
+
+    expect(result.current.state?.buttons[buttonId]).toMatchObject({
+      label: 'Escena Renombrada',
+      icon: 'camera',
+      background: SEED_STATE.buttons[buttonId].background,
+    });
+
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    const parsed = JSON.parse(stored as string);
+    expect(parsed.buttons[buttonId].label).toBe('Escena Renombrada');
+  });
+
+  it('updateButton does nothing for an unknown button id', async () => {
+    const { result } = await renderHook(() => useStreamDeckState());
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.updateButton('does-not-exist', { label: 'x' });
+    });
+
+    expect(result.current.state).toEqual(SEED_STATE);
+  });
+
   it('falls back to seed data when AsyncStorage.getItem throws', async () => {
     jest.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('native module unavailable'));
 

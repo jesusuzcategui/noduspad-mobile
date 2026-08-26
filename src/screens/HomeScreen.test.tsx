@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HomeScreen } from './HomeScreen';
+import { EditModeProvider } from '../streamdeck/EditModeContext';
 
 const Stack = createNativeStackNavigator();
 
@@ -14,11 +15,13 @@ beforeEach(async () => {
 describe('HomeScreen', () => {
   it('renders the Stream Deck grid with seeded categories', async () => {
     await render(
-      <NavigationContainer>
-        <Stack.Navigator>
-          <Stack.Screen name="Home">{() => <HomeScreen />}</Stack.Screen>
-        </Stack.Navigator>
-      </NavigationContainer>,
+      <EditModeProvider>
+        <NavigationContainer>
+          <Stack.Navigator>
+            <Stack.Screen name="Home">{() => <HomeScreen />}</Stack.Screen>
+          </Stack.Navigator>
+        </NavigationContainer>
+      </EditModeProvider>,
     );
 
     await waitFor(() => {

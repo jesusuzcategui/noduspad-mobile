@@ -3,10 +3,12 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useDashboardLayout } from './useBreakpoint';
+import { useEditMode } from '../streamdeck/EditModeContext';
 import { blur, color, radius, space, type } from '../theme/glass';
 
 export function GlassDrawerContent({ state, navigation, descriptors }: DrawerContentComponentProps) {
   const layout = useDashboardLayout();
+  const { isEditMode, toggleEditMode } = useEditMode();
 
   // In 'appbar' mode the drawer is zero-width and meant to stay invisible until
   // swiped open. Android's native BlurView does not reliably respect a zero-width
@@ -50,6 +52,14 @@ export function GlassDrawerContent({ state, navigation, descriptors }: DrawerCon
             </Pressable>
           );
         })}
+
+        <Pressable
+          testID="drawer-edit-mode-toggle"
+          onPress={toggleEditMode}
+          style={[styles.item, styles.editModeItem, isEditMode && styles.itemActive]}>
+          <Text style={isEditMode ? styles.labelActive : styles.label}>Modo edición</Text>
+          <View style={[styles.editModeDot, isEditMode && styles.editModeDotActive]} />
+        </Pressable>
       </View>
     </View>
   );
@@ -88,5 +98,23 @@ const styles = StyleSheet.create({
     ...type.body,
     color: color.textPrimary,
     fontWeight: '700',
+  },
+  editModeItem: {
+    marginTop: space.xl,
+    borderTopWidth: 1,
+    borderTopColor: color.panelBorder,
+    paddingTop: space.lg + space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  editModeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: color.textMuted,
+  },
+  editModeDotActive: {
+    backgroundColor: color.accent,
   },
 });
