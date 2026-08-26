@@ -4,6 +4,13 @@
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- App is unconditionally dark (see src/theme/glass.ts) — pin the window and
+             system navigation bar backgrounds so neither falls back to the theme's
+             default white, both pre-edge-to-edge (navigationBarColor) and on API 35+
+             where the nav bar is transparent and shows windowBackground through it. -->
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="android:navigationBarColor">@color/app_background</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
 </resources>

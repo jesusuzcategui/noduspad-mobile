@@ -1,0 +1,6 @@
+<resources>
+    <!-- Matches src/theme/glass.ts color.voidTop — the app's dark acrylic background.
+         Used as the window/navigation-bar background so the system nav bar (and any
+         edge-to-edge transparent region behind it) doesn't default to white. -->
+    <color name="app_background">#050508</color>
+</resources>

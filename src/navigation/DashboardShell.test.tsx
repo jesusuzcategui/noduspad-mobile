@@ -81,7 +81,7 @@ describe('DashboardShell', () => {
     );
     expect(capturedScreenOptions.drawerType).toBe('permanent');
     expect(capturedScreenOptions.swipeEnabled).toBe(true);
-    expect(capturedScreenOptions.drawerStyle).toBeUndefined();
+    expect(capturedScreenOptions.drawerStyle).toEqual({ width: 260 });
   });
 
   it('configures the drawer as front/zero-width and swipe-disabled when layout is appbar', async () => {

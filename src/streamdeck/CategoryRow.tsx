@@ -49,6 +49,16 @@ export function CategoryRow({
       )}
       <View onLayout={handleLayout}>
         <DraggableFlatList
+          // react-native-draggable-flatlist v4 caches each cell's drag-end position
+          // (`heldTanslate`) until that cell's onLayout fires again — but RN only
+          // fires onLayout when a cell's measured size changes, not just its position.
+          // Our buttons all share the same computed width, so after a reorder most
+          // cells never re-fire onLayout, and they render at their stale mid-drag
+          // position (often overlapping a neighbor or off the visible strip) until
+          // touched again. Keying the list on the button order forces a full remount
+          // on every reorder, which resets that cache cleanly. The lists are tiny
+          // (a handful of buttons), so a remount is cheap.
+          key={category.buttonIds.join(',')}
           testID={`category-buttons-${category.id}`}
           horizontal
           data={category.buttonIds}

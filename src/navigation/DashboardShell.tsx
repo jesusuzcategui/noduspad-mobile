@@ -24,7 +24,7 @@ export function DashboardShell() {
       screenOptions={{
         headerShown: false,
         drawerType: isDrawerLayout ? 'permanent' : 'front',
-        drawerStyle: isDrawerLayout ? undefined : { width: 0 },
+        drawerStyle: isDrawerLayout ? { width: 260 } : { width: 0 },
         swipeEnabled: isDrawerLayout,
       }}>
       <Drawer.Screen name="Home" component={HomeScreen} />
