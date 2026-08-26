@@ -3,4 +3,5 @@
          Used as the window/navigation-bar background so the system nav bar (and any
          edge-to-edge transparent region behind it) doesn't default to white. -->
     <color name="app_background">#050508</color>
+    <color name="ic_launcher_background">#FFFFFF</color>
 </resources>
