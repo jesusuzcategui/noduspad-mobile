@@ -144,15 +144,21 @@ type StreamDeckIconProps = {
 export function StreamDeckIcon({ name, size, color }: StreamDeckIconProps) {
   const Icon = ICONS[name];
   return (
-    <View
-      style={{
-        width: BASE_SIZE,
-        height: BASE_SIZE,
-        alignItems: 'center',
-        justifyContent: 'center',
-        transform: [{ scale: size / BASE_SIZE }],
-      }}>
-      <Icon color={color} />
+    // The scale transform below is visual only — it doesn't resize this View's
+    // layout box, so the outer box must be sized to `size` itself or siblings
+    // (the button label) would overlap the scaled-up icon instead of leaving
+    // room for it.
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: BASE_SIZE,
+          height: BASE_SIZE,
+          alignItems: 'center',
+          justifyContent: 'center',
+          transform: [{ scale: size / BASE_SIZE }],
+        }}>
+        <Icon color={color} />
+      </View>
     </View>
   );
 }

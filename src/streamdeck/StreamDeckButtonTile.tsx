@@ -34,7 +34,7 @@ export function StreamDeckButtonTile({
         backgroundStyle,
         pressed && styles.pressed,
       ]}>
-      <StreamDeckIcon name={button.icon} size={28} color={button.iconColor} />
+      <StreamDeckIcon name={button.icon} size={84} color={button.iconColor} />
       <Text style={[styles.label, { color: button.iconColor }]} numberOfLines={2}>
         {button.label}
       </Text>
