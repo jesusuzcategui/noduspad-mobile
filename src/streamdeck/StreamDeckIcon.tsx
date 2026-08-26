@@ -1,139 +1,38 @@
 import React from 'react';
-import { View } from 'react-native';
+import * as LucideIcons from 'lucide-react-native';
+import { HelpCircle, LucideProps } from 'lucide-react-native';
 
-// Plain RN Views, no icon font or SVG library: both a private-use-area font glyph
-// and react-native-svg (Fabric prop setters silently no-op on this device/RN combo)
-// rendered invisibly. Views are the one primitive guaranteed to paint.
-export type StreamDeckIconName = 'movie-outline' | 'microphone' | 'camera' | 'lock-outline' | 'console';
+export type StreamDeckIconName = string;
 
-const BASE_SIZE = 28;
-const DIM = 'rgba(0,0,0,0.35)';
-
-function MovieIcon({ color }: { color: string }) {
-  return (
-    <View
-      style={{
-        width: 0,
-        height: 0,
-        borderTopWidth: 7,
-        borderBottomWidth: 7,
-        borderLeftWidth: 12,
-        borderTopColor: 'transparent',
-        borderBottomColor: 'transparent',
-        borderLeftColor: color,
-      }}
-    />
-  );
-}
-
-function MicrophoneIcon({ color }: { color: string }) {
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <View style={{ width: 10, height: 16, borderRadius: 5, backgroundColor: color }} />
-      <View style={{ width: 16, height: 2, borderRadius: 1, backgroundColor: color, marginTop: 4 }} />
-      <View style={{ width: 2, height: 4, backgroundColor: color, marginTop: 1 }} />
-    </View>
-  );
-}
-
-function CameraIcon({ color }: { color: string }) {
-  return (
-    <View>
-      <View
-        style={{
-          position: 'absolute',
-          top: -3,
-          left: 4,
-          width: 6,
-          height: 3,
-          borderRadius: 1,
-          backgroundColor: color,
-        }}
-      />
-      <View
-        style={{
-          width: 22,
-          height: 16,
-          borderRadius: 3,
-          backgroundColor: color,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-        <View style={{ width: 9, height: 9, borderRadius: 5, borderWidth: 2, borderColor: DIM }} />
-      </View>
-    </View>
-  );
-}
-
-function LockIcon({ color }: { color: string }) {
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <View
-        style={{
-          width: 12,
-          height: 10,
-          borderTopLeftRadius: 6,
-          borderTopRightRadius: 6,
-          borderWidth: 2,
-          borderBottomWidth: 0,
-          borderColor: color,
-        }}
-      />
-      <View
-        style={{
-          width: 16,
-          height: 12,
-          borderRadius: 2,
-          backgroundColor: color,
-          marginTop: -1,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-        <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: DIM }} />
-      </View>
-    </View>
-  );
-}
-
-function ConsoleIcon({ color }: { color: string }) {
-  return (
-    <View
-      style={{
-        width: 22,
-        height: 18,
-        borderRadius: 3,
-        borderWidth: 2,
-        borderColor: color,
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        paddingLeft: 4,
-      }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View
-          style={{
-            width: 0,
-            height: 0,
-            borderTopWidth: 3,
-            borderBottomWidth: 3,
-            borderLeftWidth: 4,
-            borderTopColor: 'transparent',
-            borderBottomColor: 'transparent',
-            borderLeftColor: color,
-          }}
-        />
-        <View style={{ width: 6, height: 2, backgroundColor: color, marginLeft: 3 }} />
-      </View>
-    </View>
-  );
-}
-
-const ICONS: Record<StreamDeckIconName, React.ComponentType<{ color: string }>> = {
-  'movie-outline': MovieIcon,
-  microphone: MicrophoneIcon,
-  camera: CameraIcon,
-  'lock-outline': LockIcon,
-  console: ConsoleIcon,
+// Old semantic names used by seeded/persisted buttons before the full Lucide
+// picker existed — kept so existing state doesn't need a storage migration.
+const LEGACY_ALIASES: Record<string, string> = {
+  'movie-outline': 'Clapperboard',
+  microphone: 'Mic',
+  camera: 'Camera',
+  'lock-outline': 'Lock',
+  console: 'Terminal',
 };
+
+export const QUICK_ICON_NAMES: StreamDeckIconName[] = [
+  'movie-outline',
+  'microphone',
+  'camera',
+  'lock-outline',
+  'console',
+];
+
+// lucide-react-native has no aggregate `icons` map export, so the full
+// library is exposed via `import *`. Each icon ships 3 aliases (Foo,
+// FooIcon, LucideFoo); this keeps only the plain PascalCase one.
+export const ALL_ICON_NAMES: string[] = Object.keys(LucideIcons).filter(
+  key => /^[A-Z]/.test(key) && !key.startsWith('Lucide') && !key.endsWith('Icon'),
+);
+
+function resolveIcon(name: StreamDeckIconName): React.ComponentType<LucideProps> {
+  const realName = LEGACY_ALIASES[name] ?? name;
+  return (LucideIcons as unknown as Record<string, React.ComponentType<LucideProps>>)[realName] ?? HelpCircle;
+}
 
 type StreamDeckIconProps = {
   name: StreamDeckIconName;
@@ -142,23 +41,6 @@ type StreamDeckIconProps = {
 };
 
 export function StreamDeckIcon({ name, size, color }: StreamDeckIconProps) {
-  const Icon = ICONS[name];
-  return (
-    // The scale transform below is visual only — it doesn't resize this View's
-    // layout box, so the outer box must be sized to `size` itself or siblings
-    // (the button label) would overlap the scaled-up icon instead of leaving
-    // room for it.
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <View
-        style={{
-          width: BASE_SIZE,
-          height: BASE_SIZE,
-          alignItems: 'center',
-          justifyContent: 'center',
-          transform: [{ scale: size / BASE_SIZE }],
-        }}>
-        <Icon color={color} />
-      </View>
-    </View>
-  );
+  const Icon = resolveIcon(name);
+  return <Icon color={color} size={size} strokeWidth={2} />;
 }

@@ -99,6 +99,37 @@ describe('useStreamDeckState', () => {
     expect(parsed.buttons[buttonId].label).toBe('Escena Renombrada');
   });
 
+  it('addButton creates a new button, appends it to the category, and persists it', async () => {
+    const { result } = await renderHook(() => useStreamDeckState());
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    const categoryId = SEED_STATE.categoryOrder[0];
+    const previousButtonIds = SEED_STATE.categories[categoryId].buttonIds;
+
+    let created;
+    await act(async () => {
+      created = result.current.addButton(categoryId);
+    });
+
+    expect(created).toMatchObject({
+      label: 'Nuevo botón',
+      icon: 'movie-outline',
+      background: { type: 'color', color: '#3a7bfd' },
+      action: { type: 'command', label: 'Nueva acción' },
+    });
+
+    const newId = (created as unknown as { id: string }).id;
+    expect(result.current.state?.buttons[newId]).toEqual(created);
+    expect(result.current.state?.categories[categoryId].buttonIds).toEqual([...previousButtonIds, newId]);
+
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    const parsed = JSON.parse(stored as string);
+    expect(parsed.buttons[newId]).toEqual(created);
+    expect(parsed.categories[categoryId].buttonIds).toEqual([...previousButtonIds, newId]);
+  });
+
   it('updateButton does nothing for an unknown button id', async () => {
     const { result } = await renderHook(() => useStreamDeckState());
     await waitFor(() => {

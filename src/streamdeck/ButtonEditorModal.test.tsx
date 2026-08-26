@@ -2,8 +2,20 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { ButtonEditorModal } from './ButtonEditorModal';
 import { SEED_STATE } from './seedData';
+import { fetchOBSScenes } from '../obs/obsCommands';
+
+jest.mock('../obs/obsCommands', () => {
+  const actual = jest.requireActual('../obs/obsCommands');
+  return { ...actual, fetchOBSScenes: jest.fn() };
+});
+
+const mockFetchOBSScenes = fetchOBSScenes as jest.MockedFunction<typeof fetchOBSScenes>;
 
 const button = SEED_STATE.buttons['btn-scene-1'];
+
+beforeEach(() => {
+  mockFetchOBSScenes.mockReset();
+});
 
 describe('ButtonEditorModal', () => {
   it('renders nothing when no button is given', async () => {
@@ -46,6 +58,49 @@ describe('ButtonEditorModal', () => {
       });
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('fills the action label when a non-scene OBS command is picked', async () => {
+    const { getByTestId } = await render(
+      <ButtonEditorModal button={button} onClose={jest.fn()} onSave={jest.fn()} />,
+    );
+
+    await fireEvent.press(getByTestId('editor-command-start-record'));
+
+    expect(getByTestId('editor-action-label').props.value).toBe('Iniciar grabación');
+  });
+
+  it('fetches live scenes for "Cambiar de escena" and fills the label on pick', async () => {
+    mockFetchOBSScenes.mockResolvedValue(['Escena A', 'Escena B']);
+
+    const { getByTestId } = await render(
+      <ButtonEditorModal button={button} onClose={jest.fn()} onSave={jest.fn()} />,
+    );
+
+    await fireEvent.press(getByTestId('editor-command-change-scene'));
+
+    await waitFor(() => {
+      expect(getByTestId('editor-scene-Escena A')).toBeTruthy();
+    });
+
+    await fireEvent.press(getByTestId('editor-scene-Escena A'));
+
+    expect(getByTestId('editor-action-label').props.value).toBe('Cambiar a Escena A');
+  });
+
+  it('shows an error with retry when fetching scenes fails', async () => {
+    mockFetchOBSScenes.mockRejectedValue(new Error('No se pudo conectar a OBS'));
+
+    const { getByTestId } = await render(
+      <ButtonEditorModal button={button} onClose={jest.fn()} onSave={jest.fn()} />,
+    );
+
+    await fireEvent.press(getByTestId('editor-command-change-scene'));
+
+    await waitFor(() => {
+      expect(getByTestId('editor-scenes-error').props.children).toBe('No se pudo conectar a OBS');
+    });
+    expect(getByTestId('editor-scenes-retry')).toBeTruthy();
   });
 
   it('closes without saving when Cancelar is pressed', async () => {

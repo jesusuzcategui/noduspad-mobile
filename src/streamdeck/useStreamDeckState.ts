@@ -93,6 +93,34 @@ export function useStreamDeckState() {
     });
   }, []);
 
+  const addButton = useCallback((categoryId: string): StreamDeckButton => {
+    const newButton: StreamDeckButton = {
+      id: `btn-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      label: 'Nuevo botón',
+      icon: 'movie-outline',
+      iconColor: '#ffffff',
+      background: { type: 'color', color: '#3a7bfd' },
+      action: { type: 'command', label: 'Nueva acción' },
+    };
+    setState(prev => {
+      if (!prev || !prev.categories[categoryId]) return prev;
+      const next = {
+        ...prev,
+        buttons: { ...prev.buttons, [newButton.id]: newButton },
+        categories: {
+          ...prev.categories,
+          [categoryId]: {
+            ...prev.categories[categoryId],
+            buttonIds: [...prev.categories[categoryId].buttonIds, newButton.id],
+          },
+        },
+      };
+      persist(next);
+      return next;
+    });
+    return newButton;
+  }, []);
+
   const updateButton = useCallback((buttonId: string, updates: Partial<StreamDeckButton>) => {
     setState(prev => {
       if (!prev || !prev.buttons[buttonId]) return prev;
@@ -108,5 +136,5 @@ export function useStreamDeckState() {
     });
   }, []);
 
-  return { state, isLoading, reorderCategories, reorderButtonsInCategory, updateButton };
+  return { state, isLoading, reorderCategories, reorderButtonsInCategory, addButton, updateButton };
 }

@@ -88,6 +88,33 @@ describe('StreamDeckGrid', () => {
     );
   });
 
+  it('creates a new button via the add-button tile and opens its editor', async () => {
+    await render(
+      <EditModeProvider>
+        <GridWithEditModeToggle />
+      </EditModeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('category-name-cat-obs')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('test-toggle-edit-mode'));
+
+    await fireEvent(screen.getByTestId('category-row-layout-cat-obs'), 'layout', {
+      nativeEvent: { layout: { width: 320, height: 100, x: 0, y: 0 } },
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('add-button-cat-obs')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('add-button-cat-obs'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('editor-label').props.value).toBe('Nuevo botón');
+    });
+  });
+
   it('opens the button editor instead of running the action when edit mode is on', async () => {
     await render(
       <EditModeProvider>

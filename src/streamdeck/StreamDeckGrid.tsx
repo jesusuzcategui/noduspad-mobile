@@ -12,7 +12,8 @@ import { color, space } from '../theme/glass';
 const FEEDBACK_DURATION_MS = 1500;
 
 export function StreamDeckGrid() {
-  const { state, isLoading, reorderCategories, reorderButtonsInCategory, updateButton } = useStreamDeckState();
+  const { state, isLoading, reorderCategories, reorderButtonsInCategory, addButton, updateButton } =
+    useStreamDeckState();
   const { isEditMode } = useEditMode();
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const feedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -35,6 +36,13 @@ export function StreamDeckGrid() {
       feedbackTimeout.current = setTimeout(() => setFeedbackMessage(null), FEEDBACK_DURATION_MS);
     },
     [isEditMode],
+  );
+
+  const handleAddButton = useCallback(
+    (categoryId: string) => {
+      setEditingButton(addButton(categoryId));
+    },
+    [addButton],
   );
 
   useEffect(() => {
@@ -68,6 +76,8 @@ export function StreamDeckGrid() {
             onReorder={newButtonIds => reorderButtonsInCategory(categoryId, newButtonIds)}
             onButtonPress={handleButtonPress}
             onNameLongPress={drag}
+            isEditMode={isEditMode}
+            onAddButton={handleAddButton}
           />
         )}
       />

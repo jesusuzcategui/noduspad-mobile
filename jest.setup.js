@@ -38,6 +38,7 @@ jest.mock('react-native-draggable-flatlist', () => {
     keyExtractor,
     contentContainerStyle,
     ItemSeparatorComponent,
+    ListFooterComponent,
     onDragEnd,
     testID,
   }) => {
@@ -66,6 +67,11 @@ jest.mock('react-native-draggable-flatlist', () => {
           renderItem({ item, index, drag: () => {}, isActive: false, getIndex: () => index }),
         ),
       ),
+      ListFooterComponent
+        ? React.isValidElement(ListFooterComponent)
+          ? ListFooterComponent
+          : React.createElement(ListFooterComponent)
+        : null,
     );
   };
 

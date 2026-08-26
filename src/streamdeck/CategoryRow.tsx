@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
+import { Plus } from 'lucide-react-native';
 import type { StreamDeckButton, StreamDeckCategory } from './types';
 import { StreamDeckButtonTile } from './StreamDeckButtonTile';
 import { computeItemWidth } from './useCarouselItemWidth';
-import { color, space, type } from '../theme/glass';
+import { color, radius, space, type } from '../theme/glass';
 
 const ITEM_GAP = space.md;
 
@@ -16,6 +17,8 @@ type CategoryRowProps = {
   onReorder: (newButtonIds: string[]) => void;
   onButtonPress: (button: StreamDeckButton) => void;
   onNameLongPress?: () => void;
+  isEditMode?: boolean;
+  onAddButton?: (categoryId: string) => void;
 };
 
 export function CategoryRow({
@@ -24,6 +27,8 @@ export function CategoryRow({
   onReorder,
   onButtonPress,
   onNameLongPress,
+  isEditMode = false,
+  onAddButton,
 }: CategoryRowProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [measuredWidth, setMeasuredWidth] = useState(0);
@@ -47,7 +52,7 @@ export function CategoryRow({
       ) : (
         nameElement
       )}
-      <View onLayout={handleLayout}>
+      <View testID={`category-row-layout-${category.id}`} onLayout={handleLayout}>
         <DraggableFlatList
           // react-native-draggable-flatlist v4 caches each cell's drag-end position
           // (`heldTanslate`) until that cell's onLayout fires again — but RN only
@@ -75,6 +80,17 @@ export function CategoryRow({
               disabled={isActive}
             />
           )}
+          ListFooterComponent={
+            isEditMode && itemWidth > 0 && onAddButton ? (
+              <Pressable
+                testID={`add-button-${category.id}`}
+                onPress={() => onAddButton(category.id)}
+                style={[styles.addTile, { width: itemWidth, height: itemWidth }]}>
+                <Plus color={color.textSecondary} size={28} />
+              </Pressable>
+            ) : undefined
+          }
+          ListFooterComponentStyle={styles.footer}
         />
       </View>
     </View>
@@ -97,5 +113,16 @@ const styles = StyleSheet.create({
   },
   separator: {
     width: ITEM_GAP,
+  },
+  footer: {
+    marginLeft: ITEM_GAP,
+  },
+  addTile: {
+    borderRadius: radius.chip,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: color.inputBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -10,11 +11,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { StreamDeckIcon, type StreamDeckIconName } from './StreamDeckIcon';
+import { QUICK_ICON_NAMES, StreamDeckIcon, type StreamDeckIconName } from './StreamDeckIcon';
+import { IconPickerModal } from './IconPickerModal';
+import { OBS_COMMANDS, fetchOBSScenes, type OBSCommandKey } from '../obs/obsCommands';
 import type { StreamDeckButton } from './types';
 import { color, radius, shadow, space, type } from '../theme/glass';
 
-const ICON_OPTIONS: StreamDeckIconName[] = ['movie-outline', 'microphone', 'camera', 'lock-outline', 'console'];
+const ICON_OPTIONS = QUICK_ICON_NAMES;
 
 const COLOR_OPTIONS = ['#3a7bfd', '#2f9e6f', '#d9534f', '#9b59b6', '#5a6270', '#1a1a1a'];
 
@@ -30,6 +33,12 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
   const [backgroundColor, setBackgroundColor] = useState(COLOR_OPTIONS[0]);
   const [actionType, setActionType] = useState<'obs' | 'command'>('obs');
   const [actionLabel, setActionLabel] = useState('');
+  const [iconPickerVisible, setIconPickerVisible] = useState(false);
+  const [commandKey, setCommandKey] = useState<OBSCommandKey | null>(null);
+  const [scenes, setScenes] = useState<string[] | null>(null);
+  const [scenesLoading, setScenesLoading] = useState(false);
+  const [scenesError, setScenesError] = useState<string | null>(null);
+  const isQuickIcon = (ICON_OPTIONS as string[]).includes(icon);
 
   useEffect(() => {
     if (!button) return;
@@ -38,7 +47,26 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
     setBackgroundColor(button.background.type === 'color' ? button.background.color : COLOR_OPTIONS[0]);
     setActionType(button.action.type);
     setActionLabel(button.action.label);
+    setCommandKey(null);
+    setScenes(null);
+    setScenesError(null);
   }, [button]);
+
+  const handleSelectCommand = (key: OBSCommandKey) => {
+    setCommandKey(key);
+    const command = OBS_COMMANDS.find(c => c.key === key)!;
+    if (!command.needsScene) {
+      setActionLabel(command.label);
+      return;
+    }
+    if (scenes) return;
+    setScenesLoading(true);
+    setScenesError(null);
+    fetchOBSScenes()
+      .then(setScenes)
+      .catch(err => setScenesError(err instanceof Error ? err.message : 'No se pudo conectar a OBS'))
+      .finally(() => setScenesLoading(false));
+  };
 
   if (!button) return null;
 
@@ -86,7 +114,23 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
                     <StreamDeckIcon name={name} size={24} color={color.textPrimary} />
                   </Pressable>
                 ))}
+                <Pressable
+                  testID="editor-icon-more"
+                  onPress={() => setIconPickerVisible(true)}
+                  style={[styles.iconSwatch, !isQuickIcon && styles.iconSwatchActive]}>
+                  {isQuickIcon ? (
+                    <Text style={styles.moreLabel}>+</Text>
+                  ) : (
+                    <StreamDeckIcon name={icon} size={24} color={color.textPrimary} />
+                  )}
+                </Pressable>
               </View>
+
+              <IconPickerModal
+                visible={iconPickerVisible}
+                onClose={() => setIconPickerVisible(false)}
+                onSelect={setIcon}
+              />
 
               <Text style={styles.label}>Color</Text>
               <View style={styles.colorRow}>
@@ -121,6 +165,67 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
                   </Text>
                 </Pressable>
               </View>
+
+              {actionType === 'obs' && (
+                <>
+                  <Text style={styles.label}>Comando OBS</Text>
+                  <View style={styles.commandWrap}>
+                    {OBS_COMMANDS.map(command => (
+                      <Pressable
+                        key={command.key}
+                        testID={`editor-command-${command.key}`}
+                        onPress={() => handleSelectCommand(command.key)}
+                        style={[styles.commandChip, commandKey === command.key && styles.commandChipActive]}>
+                        <Text
+                          style={
+                            commandKey === command.key ? styles.commandChipTextActive : styles.commandChipText
+                          }>
+                          {command.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {commandKey === 'change-scene' && (
+                    <View style={styles.sceneBox}>
+                      {scenesLoading && <ActivityIndicator testID="editor-scenes-loading" color={color.accent} />}
+                      {scenesError && (
+                        <View>
+                          <Text testID="editor-scenes-error" style={styles.errorText}>
+                            {scenesError}
+                          </Text>
+                          <Pressable testID="editor-scenes-retry" onPress={() => handleSelectCommand('change-scene')}>
+                            <Text style={styles.retryText}>Reintentar</Text>
+                          </Pressable>
+                        </View>
+                      )}
+                      {scenes && (
+                        <View style={styles.commandWrap}>
+                          {scenes.map(sceneName => (
+                            <Pressable
+                              key={sceneName}
+                              testID={`editor-scene-${sceneName}`}
+                              onPress={() => setActionLabel(`Cambiar a ${sceneName}`)}
+                              style={[
+                                styles.commandChip,
+                                actionLabel === `Cambiar a ${sceneName}` && styles.commandChipActive,
+                              ]}>
+                              <Text
+                                style={
+                                  actionLabel === `Cambiar a ${sceneName}`
+                                    ? styles.commandChipTextActive
+                                    : styles.commandChipText
+                                }>
+                                {sceneName}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
+              )}
 
               <Text style={styles.label}>Descripción de la acción</Text>
               <TextInput
@@ -211,6 +316,11 @@ const styles = StyleSheet.create({
     borderColor: color.accent,
     borderWidth: 2,
   },
+  moreLabel: {
+    ...type.label,
+    fontSize: 20,
+    color: color.textSecondary,
+  },
   colorRow: {
     flexDirection: 'row',
     gap: space.sm,
@@ -248,6 +358,43 @@ const styles = StyleSheet.create({
   segmentTextActive: {
     ...type.label,
     color: '#ffffff',
+  },
+  commandWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+  },
+  commandChip: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.chip,
+    borderWidth: 1,
+    borderColor: color.inputBorder,
+    backgroundColor: color.inputFill,
+  },
+  commandChipActive: {
+    borderColor: color.accent,
+    backgroundColor: color.accent,
+  },
+  commandChipText: {
+    ...type.label,
+    color: color.textSecondary,
+  },
+  commandChipTextActive: {
+    ...type.label,
+    color: '#ffffff',
+  },
+  sceneBox: {
+    marginTop: space.sm,
+  },
+  errorText: {
+    ...type.caption,
+    color: '#d9534f',
+    marginBottom: space.xs,
+  },
+  retryText: {
+    ...type.label,
+    color: color.accent,
   },
   buttonRow: {
     flexDirection: 'row',

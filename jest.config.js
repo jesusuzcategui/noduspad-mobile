@@ -5,8 +5,11 @@ module.exports = {
     './jest.setup.js',
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-async-storage|@react-navigation|react-native-gesture-handler)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-async-storage|@react-navigation|react-native-gesture-handler|lucide-react-native)/)',
   ],
+  moduleNameMapper: {
+    '^lucide-react-native$': '<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js',
+  },
   // Git worktrees for this repo live under .claude/worktrees/<name>, nested inside
   // the main checkout. Without these, running jest from the main checkout also
   // sweeps up each worktree's own src/ and node_modules, producing duplicate
