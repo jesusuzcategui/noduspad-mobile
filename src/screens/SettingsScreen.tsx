@@ -1,5 +1,15 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { ScreenWithAppBar } from '../navigation/ScreenWithAppBar';
 import { GlassPanel } from '../theme/GlassPanel';
 import { useOBSConnection } from '../obs/useOBSConnection';
@@ -34,68 +44,76 @@ export function SettingsScreen() {
 
   return (
     <ScreenWithAppBar>
-      <View style={styles.container}>
-        <GlassPanel style={styles.card}>
-          <Text style={styles.title}>Conexión con OBS</Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -100}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <GlassPanel style={styles.card}>
+            <Text style={styles.title}>Conexión con OBS</Text>
 
-          <Text style={styles.label}>Host</Text>
-          <TextInput
-            testID="obs-host"
-            style={styles.input}
-            placeholder="localhost"
-            placeholderTextColor={color.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={config.host}
-            onChangeText={host => setConfig({ ...config, host })}
-          />
+            <Text style={styles.label}>Host</Text>
+            <TextInput
+              testID="obs-host"
+              style={styles.input}
+              placeholder="localhost"
+              placeholderTextColor={color.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={config.host}
+              onChangeText={host => setConfig({ ...config, host })}
+            />
 
-          <Text style={styles.label}>Puerto</Text>
-          <TextInput
-            testID="obs-port"
-            style={styles.input}
-            placeholder="4455"
-            placeholderTextColor={color.textMuted}
-            keyboardType="number-pad"
-            value={config.port}
-            onChangeText={port => setConfig({ ...config, port })}
-          />
+            <Text style={styles.label}>Puerto</Text>
+            <TextInput
+              testID="obs-port"
+              style={styles.input}
+              placeholder="4455"
+              placeholderTextColor={color.textMuted}
+              keyboardType="number-pad"
+              value={config.port}
+              onChangeText={port => setConfig({ ...config, port })}
+            />
 
-          <Text style={styles.label}>Contraseña</Text>
-          <TextInput
-            testID="obs-password"
-            style={styles.input}
-            placeholder="Contraseña del servidor WebSocket"
-            placeholderTextColor={color.textMuted}
-            secureTextEntry
-            value={config.password}
-            onChangeText={password => setConfig({ ...config, password })}
-          />
+            <Text style={styles.label}>Contraseña</Text>
+            <TextInput
+              testID="obs-password"
+              style={styles.input}
+              placeholder="Contraseña del servidor WebSocket"
+              placeholderTextColor={color.textMuted}
+              secureTextEntry
+              value={config.password}
+              onChangeText={password => setConfig({ ...config, password })}
+            />
 
-          <View style={styles.statusRow}>
-            <View style={[styles.statusDot, { backgroundColor: STATUS_COLOR[status] }]} />
-            <Text style={[styles.statusText, { color: STATUS_COLOR[status] }]}>{STATUS_LABEL[status]}</Text>
-          </View>
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, { backgroundColor: STATUS_COLOR[status] }]} />
+              <Text style={[styles.statusText, { color: STATUS_COLOR[status] }]}>{STATUS_LABEL[status]}</Text>
+            </View>
 
-          {errorMessage !== null && (
-            <Text testID="obs-error" style={styles.error}>
-              {errorMessage}
-            </Text>
-          )}
-
-          <Pressable
-            testID="obs-connect"
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-            disabled={status === 'connecting'}
-            onPress={() => (status === 'connected' ? disconnect() : connect())}>
-            {status === 'connecting' ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.buttonText}>{status === 'connected' ? 'Desconectar' : 'Probar conexión'}</Text>
+            {errorMessage !== null && (
+              <Text testID="obs-error" style={styles.error}>
+                {errorMessage}
+              </Text>
             )}
-          </Pressable>
-        </GlassPanel>
-      </View>
+
+            <Pressable
+              testID="obs-connect"
+              style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+              disabled={status === 'connecting'}
+              onPress={() => (status === 'connected' ? disconnect() : connect())}>
+              {status === 'connecting' ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>{status === 'connected' ? 'Desconectar' : 'Probar conexión'}</Text>
+              )}
+            </Pressable>
+          </GlassPanel>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenWithAppBar>
   );
 }
@@ -106,10 +124,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  container: {
+  flex: {
     flex: 1,
+  },
+  container: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: space.lg,
+    paddingVertical: space.xl,
   },
   card: {
     paddingHorizontal: space.xl,
