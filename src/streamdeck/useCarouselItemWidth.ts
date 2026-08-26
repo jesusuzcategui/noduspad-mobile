@@ -12,11 +12,16 @@ function targetVisibleCount(width: number, height: number): number {
   return 3.5; // mobile landscape
 }
 
-export function computeItemWidth(width: number, height: number, gap: number): number {
-  return (width - gap) / targetVisibleCount(width, height);
+export function computeItemWidth(
+  classifyWidth: number,
+  classifyHeight: number,
+  sizingWidth: number,
+  gap: number,
+): number {
+  return (sizingWidth - gap) / targetVisibleCount(classifyWidth, classifyHeight);
 }
 
-export function useCarouselItemWidth(gap: number): number {
+export function useCarouselItemWidth(sizingWidth: number, gap: number): number {
   const { width, height } = useWindowDimensions();
-  return computeItemWidth(width, height, gap);
+  return computeItemWidth(width, height, sizingWidth, gap);
 }

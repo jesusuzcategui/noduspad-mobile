@@ -25,9 +25,10 @@ export function CategoryRow({
   onButtonPress,
   onNameLongPress,
 }: CategoryRowProps) {
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [measuredWidth, setMeasuredWidth] = useState(0);
-  const itemWidth = measuredWidth > 0 ? computeItemWidth(measuredWidth, windowHeight, ITEM_GAP) : 0;
+  const itemWidth =
+    measuredWidth > 0 ? computeItemWidth(windowWidth, windowHeight, measuredWidth, ITEM_GAP) : 0;
 
   const handleLayout = (event: LayoutChangeEvent) => {
     setMeasuredWidth(event.nativeEvent.layout.width);
