@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { useStreamDeckState } from './useStreamDeckState';
 import { CategoryRow } from './CategoryRow';
@@ -44,19 +44,19 @@ export function StreamDeckGrid() {
   return (
     <View style={styles.container}>
       <DraggableFlatList
+        testID="category-order-list"
         data={state.categoryOrder}
         keyExtractor={id => id}
         onDragEnd={({ data }) => reorderCategories(data)}
         contentContainerStyle={styles.list}
-        renderItem={({ item: categoryId, drag, isActive }: RenderItemParams<string>) => (
-          <Pressable onLongPress={drag} disabled={isActive}>
-            <CategoryRow
-              category={state.categories[categoryId]}
-              buttons={state.buttons}
-              onReorder={newButtonIds => reorderButtonsInCategory(categoryId, newButtonIds)}
-              onButtonPress={handleButtonPress}
-            />
-          </Pressable>
+        renderItem={({ item: categoryId, drag }: RenderItemParams<string>) => (
+          <CategoryRow
+            category={state.categories[categoryId]}
+            buttons={state.buttons}
+            onReorder={newButtonIds => reorderButtonsInCategory(categoryId, newButtonIds)}
+            onButtonPress={handleButtonPress}
+            onNameLongPress={drag}
+          />
         )}
       />
       <TapFeedbackBanner message={feedbackMessage} />

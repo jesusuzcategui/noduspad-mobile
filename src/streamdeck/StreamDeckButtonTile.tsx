@@ -7,9 +7,17 @@ type StreamDeckButtonTileProps = {
   button: StreamDeckButton;
   width: number;
   onPress: (button: StreamDeckButton) => void;
+  onLongPress?: () => void;
+  disabled?: boolean;
 };
 
-export function StreamDeckButtonTile({ button, width, onPress }: StreamDeckButtonTileProps) {
+export function StreamDeckButtonTile({
+  button,
+  width,
+  onPress,
+  onLongPress,
+  disabled,
+}: StreamDeckButtonTileProps) {
   const backgroundStyle =
     button.background.type === 'color' ? { backgroundColor: button.background.color } : undefined;
 
@@ -17,6 +25,8 @@ export function StreamDeckButtonTile({ button, width, onPress }: StreamDeckButto
     <Pressable
       testID={`streamdeck-button-${button.id}`}
       onPress={() => onPress(button)}
+      onLongPress={onLongPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.tile,
         { width, height: width },

@@ -1,4 +1,3 @@
-import React from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStreamDeckState } from './useStreamDeckState';
@@ -75,5 +74,43 @@ describe('useStreamDeckState', () => {
 
     const stored = await AsyncStorage.getItem(STORAGE_KEY);
     expect(JSON.parse(stored as string).categories[categoryId].buttonIds).toEqual(reversed);
+  });
+
+  it('falls back to seed data when AsyncStorage.getItem throws', async () => {
+    jest.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('native module unavailable'));
+
+    const { result } = await renderHook(() => useStreamDeckState());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.state).toEqual(SEED_STATE);
+
+    jest.restoreAllMocks();
+  });
+
+  it('falls back to seed data when stored value is invalid JSON', async () => {
+    await AsyncStorage.setItem(STORAGE_KEY, 'not-valid-json{{{');
+
+    const { result } = await renderHook(() => useStreamDeckState());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.state).toEqual(SEED_STATE);
+  });
+
+  it('falls back to seed data when stored value has an invalid shape', async () => {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({}));
+
+    const { result } = await renderHook(() => useStreamDeckState());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.state).toEqual(SEED_STATE);
   });
 });

@@ -6,7 +6,23 @@ import type { StreamDeckState } from './types';
 const STORAGE_KEY = 'streamdeck-state-v1';
 
 async function persist(state: StreamDeckState): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('StreamDeck: failed to persist state', error);
+  }
+}
+
+function isValidStreamDeckState(value: unknown): value is StreamDeckState {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<StreamDeckState>;
+  return (
+    Array.isArray(candidate.categoryOrder) &&
+    typeof candidate.categories === 'object' &&
+    candidate.categories !== null &&
+    typeof candidate.buttons === 'object' &&
+    candidate.buttons !== null
+  );
 }
 
 export function useStreamDeckState() {
@@ -17,16 +33,31 @@ export function useStreamDeckState() {
     let cancelled = false;
 
     async function load() {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (cancelled) return;
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (cancelled) return;
 
-      if (stored) {
-        setState(JSON.parse(stored));
-      } else {
+        if (stored) {
+          const parsed: unknown = JSON.parse(stored);
+          if (isValidStreamDeckState(parsed)) {
+            setState(parsed);
+            return;
+          }
+          console.warn('StreamDeck: stored state has an invalid shape, falling back to seed data');
+        }
+
         setState(SEED_STATE);
         await persist(SEED_STATE);
+      } catch (error) {
+        if (cancelled) return;
+        console.warn('StreamDeck: failed to load state, falling back to seed data', error);
+        setState(SEED_STATE);
+        await persist(SEED_STATE);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
-      setIsLoading(false);
     }
 
     load();
