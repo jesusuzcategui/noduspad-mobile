@@ -12,7 +12,21 @@ jest.mock('../obs/obsCommands', () => {
   return { ...actual, fetchOBSScenes: jest.fn() };
 });
 
+// Without this mock, pressing the "Comando" segment (or, since finding 1's
+// fix, simply opening the editor on a button whose action is already
+// 'command') triggers a REAL `new WebSocket('ws://localhost:7070')` —
+// non-deterministic in CI and would actually talk to a real noduspad-pc
+// server if one happens to be running during test runs. Mirrors the module
+// mock convention in StreamDeckGrid.test.tsx.
+jest.mock('../commandServer/commandServerClient', () => {
+  const actual = jest.requireActual('../commandServer/commandServerClient');
+  return { ...actual, listCommands: jest.fn() };
+});
+
 const mockFetchOBSScenes = fetchOBSScenes as jest.MockedFunction<typeof fetchOBSScenes>;
+const mockListCommands = commandServerClient.listCommands as jest.MockedFunction<
+  typeof commandServerClient.listCommands
+>;
 
 const button = SEED_STATE.buttons['btn-scene-1'];
 
@@ -30,6 +44,8 @@ function renderModal(props: {
 
 beforeEach(() => {
   mockFetchOBSScenes.mockReset();
+  mockListCommands.mockReset();
+  mockListCommands.mockResolvedValue([]);
 });
 
 describe('ButtonEditorModal', () => {
@@ -107,7 +123,7 @@ describe('ButtonEditorModal', () => {
   });
 
   it('lists existing commands and selects one, saving its commandId', async () => {
-    jest.spyOn(commandServerClient, 'listCommands').mockResolvedValue([
+    mockListCommands.mockResolvedValue([
       { id: 'cmd-1', label: 'Play/Pause', kind: 'media_key', target: 'play_pause' },
     ]);
 
@@ -131,6 +147,26 @@ describe('ButtonEditorModal', () => {
         }),
       );
     });
+  });
+
+  it('fetches and renders the command list on open when the button is already a command button', async () => {
+    mockListCommands.mockResolvedValue([
+      { id: 'cmd-1', label: 'Play/Pause', kind: 'media_key', target: 'play_pause' },
+    ]);
+
+    const commandButton: StreamDeckButton = {
+      ...button,
+      action: { type: 'command', label: 'Play/Pause', commandId: 'cmd-1' },
+    };
+    const { getByTestId } = await renderModal({ button: commandButton, onClose: jest.fn(), onSave: jest.fn() });
+
+    // Deliberately does NOT press "editor-action-command" — the button
+    // already opens with action.type === 'command', so the fetch must be
+    // triggered by the editor opening, not by pressing the segment.
+    await waitFor(() => {
+      expect(getByTestId('editor-existing-command-cmd-1')).toBeTruthy();
+    });
+    expect(mockListCommands).toHaveBeenCalledTimes(1);
   });
 
   it('closes without saving when Cancelar is pressed', async () => {

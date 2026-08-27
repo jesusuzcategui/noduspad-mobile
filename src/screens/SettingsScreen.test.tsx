@@ -10,6 +10,7 @@ import { AllThemeProviders } from '../testUtils/AllThemeProviders';
 import { useTheme } from '../theme/ThemeContext';
 import { useGridAppearance } from '../theme/GridAppearanceContext';
 import { loadCommandServerConfig } from '../commandServer/commandServerStorage';
+import * as commandServerClient from '../commandServer/commandServerClient';
 
 jest.mock('obs-websocket-js', () => {
   return jest.fn().mockImplementation(() => ({
@@ -19,7 +20,18 @@ jest.mock('obs-websocket-js', () => {
   }));
 });
 
+// Without this mock, pressing "Probar conexión" on the Comandos tab opens a
+// REAL `new WebSocket('ws://localhost:7070')` — non-deterministic in CI.
+// Mirrors the module mock convention in StreamDeckGrid.test.tsx.
+jest.mock('../commandServer/commandServerClient', () => {
+  const actual = jest.requireActual('../commandServer/commandServerClient');
+  return { ...actual, listCommands: jest.fn() };
+});
+
 const MockedOBSWebSocket = OBSWebSocket as unknown as jest.Mock;
+const mockListCommands = commandServerClient.listCommands as jest.MockedFunction<
+  typeof commandServerClient.listCommands
+>;
 
 // SettingsScreen renders ScreenWithAppBar, which needs a real navigator screen.
 const Stack = createNativeStackNavigator();
@@ -41,6 +53,7 @@ function renderSettingsScreen() {
 beforeEach(async () => {
   await AsyncStorage.clear();
   MockedOBSWebSocket.mockClear();
+  mockListCommands.mockReset();
 });
 
 describe('SettingsScreen', () => {
@@ -204,5 +217,23 @@ describe('SettingsScreen', () => {
       const saved = await loadCommandServerConfig();
       expect(saved).toEqual({ host: '192.168.1.16', port: '7070', password: 'secret' });
     });
+  });
+
+  it('shows an error status on the Comandos tab when the connection test fails', async () => {
+    mockListCommands.mockRejectedValue(new Error('Password incorrecto'));
+
+    const { getByTestId, getByText } = await renderSettingsScreen();
+    await waitFor(() => {
+      expect(getByTestId('obs-host')).toBeTruthy();
+    });
+
+    await fireEvent.press(getByTestId('settings-tab-commands'));
+    await fireEvent.press(getByTestId('command-server-connect'));
+
+    await waitFor(() => {
+      expect(getByText('Error de conexión')).toBeTruthy();
+    });
+    expect(getByTestId('command-server-status').props.children).toBe('Error de conexión');
+    expect(getByTestId('command-server-error').props.children).toBe('Password incorrecto');
   });
 });

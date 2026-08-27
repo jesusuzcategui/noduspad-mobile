@@ -137,4 +137,78 @@ describe('commandServerClient', () => {
 
     await expect(secondPromise).resolves.toEqual([]);
   });
+
+  it('opens only one socket when two calls race before the first connect resolves', async () => {
+    // Both calls enter getAuthenticatedSocket() before loadCommandServerConfig()
+    // (an async AsyncStorage read) resolves — without single-flighting the
+    // connection attempt, each would see sharedSocket === null and open its
+    // own socket, leaking one of them.
+    const firstCallPromise = listCommands();
+    const secondCallPromise = createCommand('X', 'launch_app', 'x');
+    await flushMicrotasks();
+
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    const socket = FakeWebSocket.instances[0];
+    socket.onopen?.();
+    socket.emit({ type: 'auth_ok' });
+    await flushMicrotasks();
+    socket.emit({ type: 'commands', commands: [] });
+    socket.emit({
+      type: 'command_created',
+      command: { id: '1', label: 'X', kind: 'launch_app', target: 'x' },
+    });
+
+    await expect(firstCallPromise).resolves.toEqual([]);
+    await expect(secondCallPromise).resolves.toEqual({ id: '1', label: 'X', kind: 'launch_app', target: 'x' });
+    expect(FakeWebSocket.instances).toHaveLength(1);
+  });
+
+  it('rejects pending requests when a non-JSON frame is received', async () => {
+    const promise = listCommands();
+    await flushMicrotasks();
+    const socket = FakeWebSocket.instances[0];
+    socket.onopen?.();
+    socket.emit({ type: 'auth_ok' });
+    await flushMicrotasks();
+
+    // Simulate a malformed frame directly (bypassing the `emit` helper,
+    // which always sends valid JSON) — e.g. the wrong port hitting an
+    // unrelated service, or a proxy error page.
+    socket.onmessage?.({ data: 'not valid json' });
+
+    await expect(promise).rejects.toThrow();
+  });
+
+  it('times out and resets the connection when nothing answers the request', async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+    try {
+      const promise = listCommands();
+      await flushMicrotasks();
+      const socket = FakeWebSocket.instances[0];
+      socket.onopen?.();
+      socket.emit({ type: 'auth_ok' });
+      await flushMicrotasks();
+
+      // Server never responds to 'list_commands' — advance past the
+      // request timeout instead of waiting on a real 10s clock.
+      jest.advanceTimersByTime(10_000);
+
+      await expect(promise).rejects.toThrow(/tiempo de espera/i);
+
+      // The stuck connection must not stay half-registered as sharedSocket —
+      // the next call should open a fresh one.
+      const nextPromise = listCommands();
+      await flushMicrotasks();
+      expect(FakeWebSocket.instances).toHaveLength(2);
+      const nextSocket = FakeWebSocket.instances[1];
+      nextSocket.onopen?.();
+      nextSocket.emit({ type: 'auth_ok' });
+      await flushMicrotasks();
+      nextSocket.emit({ type: 'commands', commands: [] });
+
+      await expect(nextPromise).resolves.toEqual([]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

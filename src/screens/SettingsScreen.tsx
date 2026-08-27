@@ -28,6 +28,7 @@ import {
   saveCommandServerConfig,
   type CommandServerConfig,
 } from '../commandServer/commandServerStorage';
+import { listCommands } from '../commandServer/commandServerClient';
 
 const STEP = 2;
 
@@ -223,8 +224,16 @@ function AppearanceSettingsTab() {
 function CommandServerSettingsTab() {
   const [config, setConfig] = useState<CommandServerConfig>(DEFAULT_COMMAND_SERVER_CONFIG);
   const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const color = useThemeColors();
   const styles = createStyles(color);
+  const statusColor: Record<string, string> = {
+    idle: color.textMuted,
+    connecting: color.textSecondary,
+    connected: '#2f9e6f',
+    error: color.danger,
+  };
 
   useEffect(() => {
     loadCommandServerConfig().then(loaded => {
@@ -236,6 +245,18 @@ function CommandServerSettingsTab() {
   const update = (next: CommandServerConfig) => {
     setConfig(next);
     saveCommandServerConfig(next);
+  };
+
+  const connect = async () => {
+    setStatus('connecting');
+    setErrorMessage(null);
+    try {
+      await listCommands();
+      setStatus('connected');
+    } catch (error) {
+      setStatus('error');
+      setErrorMessage(error instanceof Error ? error.message : 'No se pudo conectar al server');
+    }
   };
 
   if (isLoading) {
@@ -283,6 +304,31 @@ function CommandServerSettingsTab() {
         value={config.password}
         onChangeText={password => update({ ...config, password })}
       />
+
+      <View style={styles.statusRow}>
+        <View style={[styles.statusDot, { backgroundColor: statusColor[status] }]} />
+        <Text testID="command-server-status" style={[styles.statusText, { color: statusColor[status] }]}>
+          {STATUS_LABEL[status]}
+        </Text>
+      </View>
+
+      {errorMessage !== null && (
+        <Text testID="command-server-error" style={styles.error}>
+          {errorMessage}
+        </Text>
+      )}
+
+      <Pressable
+        testID="command-server-connect"
+        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        disabled={status === 'connecting'}
+        onPress={connect}>
+        {status === 'connecting' ? (
+          <ActivityIndicator color="#ffffff" />
+        ) : (
+          <Text style={styles.buttonText}>Probar conexión</Text>
+        )}
+      </Pressable>
     </GlassPanel>
   );
 }

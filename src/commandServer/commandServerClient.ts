@@ -20,6 +20,13 @@ type PendingResolver = {
   reject: (error: Error) => void;
 };
 
+// A half-open TCP connection (phone roams WiFi APs, PC sleeps mid-request,
+// wrong port pointing at some other service) never fires onclose/onerror —
+// without a timeout, both the auth handshake and any request would hang
+// forever with no user feedback.
+const REQUEST_TIMEOUT_MS = 10000;
+const TIMEOUT_MESSAGE = 'Tiempo de espera agotado — verificá la conexión al server';
+
 // Reused across calls so each button press / editor open doesn't pay the
 // connect + auth handshake cost again — mirrors src/obs/obsCommands.ts's
 // sharedSocket pattern, reset to null on close so the next call reconnects.
@@ -28,18 +35,27 @@ let authPromise: Promise<void> | null = null;
 let pendingByType: Partial<Record<string, PendingResolver[]>> = {};
 let pendingExecute: Map<string, PendingResolver> = new Map();
 
+// Memoizes the in-flight connection ATTEMPT itself (synchronously, before
+// any await). Without this, two calls entering getAuthenticatedSocket()
+// before loadCommandServerConfig() resolves both see sharedSocket === null
+// and each open their own socket — the second overwrites sharedSocket,
+// leaking the first (open) connection, whose later close/error handlers
+// would then clobber the state of the OTHER, still-healthy connection.
+let connecting: Promise<WebSocket> | null = null;
+
 export function __resetSharedSocketForTests(): void {
   sharedSocket = null;
   authPromise = null;
   pendingByType = {};
   pendingExecute = new Map();
+  connecting = null;
 }
 
 // Rejects every in-flight request (both the FIFO-matched pendingByType
 // waiters and the id-keyed pendingExecute entries) and clears them. Used
-// whenever the shared connection goes away — closed or errored — so a
-// dropped connection surfaces as a rejection instead of hanging callers
-// forever.
+// whenever the shared connection goes away — closed, errored, timed out, or
+// received a malformed frame — so a dropped connection surfaces as a
+// rejection instead of hanging callers forever.
 function rejectAllPending(error: Error): void {
   for (const type of Object.keys(pendingByType)) {
     const waiters = pendingByType[type];
@@ -54,41 +70,100 @@ function rejectAllPending(error: Error): void {
   pendingExecute.clear();
 }
 
+function closeSocket(socket: WebSocket): void {
+  try {
+    socket.close();
+  } catch {
+    // Socket may already be closing/closed — closing twice is a no-op.
+  }
+}
+
+// Tears down the CURRENT shared connection: clears the cached socket/auth
+// state, closes the socket, and rejects every pending request. Safe to call
+// more than once — a no-op close on an already-closing socket is harmless.
+//
+// sharedSocket must be nulled out BEFORE calling socket.close(): some
+// WebSocket implementations (and this file's own test double) invoke
+// onclose synchronously from close(), and that handler re-enters this
+// function guarded by `sharedSocket === socket` — if the identity hasn't
+// been cleared yet, that guard passes again and recurses forever.
+function resetConnection(error: Error): void {
+  const socket = sharedSocket;
+  sharedSocket = null;
+  authPromise = null;
+  if (socket) closeSocket(socket);
+  rejectAllPending(error);
+}
+
 async function getAuthenticatedSocket(): Promise<WebSocket> {
   if (sharedSocket && authPromise) {
     await authPromise;
     return sharedSocket;
   }
+  if (connecting) return connecting;
+  connecting = openSocket();
+  try {
+    return await connecting;
+  } finally {
+    connecting = null;
+  }
+}
 
+async function openSocket(): Promise<WebSocket> {
   const config = await loadCommandServerConfig();
   const socket = new WebSocket(`ws://${config.host}:${config.port}`);
   sharedSocket = socket;
 
   authPromise = new Promise<void>((resolve, reject) => {
+    let authSettled = false;
+
+    const timeoutId = setTimeout(() => {
+      failConnection(new Error(TIMEOUT_MESSAGE));
+    }, REQUEST_TIMEOUT_MS);
+
+    const resolveAuth = () => {
+      if (authSettled) return;
+      authSettled = true;
+      clearTimeout(timeoutId);
+      resolve();
+    };
+
+    // A rejected/failed authPromise must not be left cached: if we left
+    // sharedSocket/authPromise assigned, every subsequent call would take
+    // the fast path at the top of getAuthenticatedSocket and keep
+    // re-awaiting the same already-settled promise forever — even after the
+    // user fixes the password in Settings. Resetting here forces the next
+    // call to open a fresh connection with the current config.
+    //
+    // This is called for failures both before AND after auth succeeds (e.g.
+    // a malformed frame arriving mid-session), so rejecting the authPromise
+    // itself only happens once (authSettled guard) while the connection
+    // reset/close always runs — a stale/superseded socket can never touch
+    // this state once it's no longer sharedSocket.
+    const failConnection = (error: Error) => {
+      if (!authSettled) {
+        authSettled = true;
+        clearTimeout(timeoutId);
+        reject(error);
+      }
+      if (sharedSocket === socket) {
+        resetConnection(error);
+      } else {
+        closeSocket(socket);
+      }
+    };
+
     socket.onopen = () => {
       socket.send(JSON.stringify({ type: 'auth', password: config.password }));
     };
-    // A rejected authPromise must not be left cached: if we left
-    // sharedSocket/authPromise assigned, every subsequent call would take
-    // the fast path at the top of this function and keep re-awaiting the
-    // same already-rejected promise forever — even after the user fixes
-    // the password in Settings. Closing + nulling here forces the next
-    // call to open a fresh connection with the current config.
-    const rejectAndReset = (error: Error) => {
-      sharedSocket = null;
-      authPromise = null;
-      socket.close();
-      reject(error);
+    socket.onmessage = event => handleMessage(event.data, resolveAuth, failConnection);
+    socket.onerror = () => {
+      if (sharedSocket !== socket) return;
+      failConnection(new Error('No se pudo conectar al server de comandos'));
     };
-    socket.onmessage = event => handleMessage(event.data, resolve, rejectAndReset);
-    socket.onerror = () => rejectAndReset(new Error('No se pudo conectar al server de comandos'));
     socket.onclose = () => {
-      sharedSocket = null;
-      authPromise = null;
-      // The connection can drop mid-request (realistic on a home network
-      // talking to the companion PC) — without this, any in-flight call
-      // would hang forever with no rejection and no timeout.
-      rejectAllPending(new Error('Conexión cerrada'));
+      if (sharedSocket !== socket) return;
+      failConnection(new Error('Conexión cerrada'));
     };
   });
 
@@ -99,9 +174,20 @@ async function getAuthenticatedSocket(): Promise<WebSocket> {
 function handleMessage(
   raw: string,
   resolveAuth: () => void,
-  rejectAuth: (error: Error) => void,
+  failConnection: (error: Error) => void,
 ): void {
-  const message = JSON.parse(raw) as Record<string, unknown>;
+  let message: Record<string, unknown>;
+  try {
+    message = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    // A non-JSON frame (wrong port hitting an unrelated service, a proxy
+    // error page) means we're not actually talking to the command server —
+    // treat it as a connection-level failure so every pending request is
+    // rejected instead of hanging, rather than letting the exception
+    // escape this handler.
+    failConnection(new Error('Respuesta inválida del server de comandos'));
+    return;
+  }
   const type = message.type as string;
 
   if (type === 'auth_ok') {
@@ -109,7 +195,7 @@ function handleMessage(
     return;
   }
   if (type === 'auth_error') {
-    rejectAuth(new Error(String(message.message ?? 'Autenticación fallida')));
+    failConnection(new Error(String(message.message ?? 'Autenticación fallida')));
     return;
   }
   if (type === 'execute_ok' || type === 'execute_error') {
@@ -130,8 +216,25 @@ function handleMessage(
 
 function waitFor<T>(type: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
+    // If nothing ever answers this request (half-open connection), the
+    // whole shared connection is presumably dead — reset it so every other
+    // in-flight/future request rejects/reconnects instead of staying stuck
+    // on a socket that looks alive but never responds.
+    const timeoutId = setTimeout(() => {
+      resetConnection(new Error(TIMEOUT_MESSAGE));
+    }, REQUEST_TIMEOUT_MS);
+
     const list = pendingByType[type] ?? [];
-    list.push({ resolve: resolve as (value: unknown) => void, reject });
+    list.push({
+      resolve: value => {
+        clearTimeout(timeoutId);
+        resolve(value as T);
+      },
+      reject: error => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    });
     pendingByType[type] = list;
   });
 }
@@ -174,7 +277,19 @@ export async function deleteCommand(id: string): Promise<void> {
 export async function executeCommand(commandId: string): Promise<void> {
   const socket = await getAuthenticatedSocket();
   const promise = new Promise<void>((resolve, reject) => {
-    pendingExecute.set(commandId, { resolve: resolve as (value: unknown) => void, reject });
+    const timeoutId = setTimeout(() => {
+      resetConnection(new Error(TIMEOUT_MESSAGE));
+    }, REQUEST_TIMEOUT_MS);
+    pendingExecute.set(commandId, {
+      resolve: value => {
+        clearTimeout(timeoutId);
+        resolve(value as void);
+      },
+      reject: error => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    });
   });
   socket.send(JSON.stringify({ type: 'execute', command_id: commandId }));
   await promise;

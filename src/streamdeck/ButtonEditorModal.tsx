@@ -64,14 +64,17 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
     setCommandsError(null);
   }, [button]);
 
-  const handleActionTypeChange = (type: 'obs' | 'command') => {
-    setActionType(type);
-    if (type === 'command' && existingCommands === null) {
-      listCommands()
-        .then(setExistingCommands)
-        .catch(err => setCommandsError(err instanceof Error ? err.message : 'No se pudo conectar al server'));
-    }
-  };
+  // Fetches the command list whenever the editor is showing the "Comando"
+  // action type and we don't have it yet — not just when the user presses
+  // the segment. Without this, opening the editor on a button whose
+  // action.type is ALREADY 'command' (e.g. a seeded button) never triggers
+  // a fetch, leaving the picker's spinner spinning forever.
+  useEffect(() => {
+    if (actionType !== 'command' || existingCommands !== null) return;
+    listCommands()
+      .then(setExistingCommands)
+      .catch(err => setCommandsError(err instanceof Error ? err.message : 'No se pudo conectar al server'));
+  }, [actionType, existingCommands]);
 
   const handleSelectCommand = (key: OBSCommandKey) => {
     setCommandKey(key);
@@ -182,13 +185,13 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
               <View style={styles.segmentRow}>
                 <Pressable
                   testID="editor-action-obs"
-                  onPress={() => handleActionTypeChange('obs')}
+                  onPress={() => setActionType('obs')}
                   style={[styles.segment, actionType === 'obs' && styles.segmentActive]}>
                   <Text style={actionType === 'obs' ? styles.segmentTextActive : styles.segmentText}>OBS</Text>
                 </Pressable>
                 <Pressable
                   testID="editor-action-command"
-                  onPress={() => handleActionTypeChange('command')}
+                  onPress={() => setActionType('command')}
                   style={[styles.segment, actionType === 'command' && styles.segmentActive]}>
                   <Text style={actionType === 'command' ? styles.segmentTextActive : styles.segmentText}>
                     Comando
