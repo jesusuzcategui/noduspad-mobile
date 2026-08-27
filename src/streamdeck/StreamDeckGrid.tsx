@@ -7,6 +7,7 @@ import { CategoryRow } from './CategoryRow';
 import { TapFeedbackBanner } from './TapFeedbackBanner';
 import { ButtonEditorModal } from './ButtonEditorModal';
 import { executeOBSCommand } from '../obs/obsCommands';
+import { executeCommand } from '../commandServer/commandServerClient';
 import { useThemeColors } from '../theme/ThemeContext';
 import type { StreamDeckButton } from './types';
 import { space } from '../theme/glass';
@@ -41,6 +42,15 @@ export function StreamDeckGrid() {
         showFeedback(`Ejecutando: ${button.action.label}`);
         executeOBSCommand(button.action.command, button.action.sceneName).catch(err => {
           const message = err instanceof Error ? err.message : 'No se pudo conectar a OBS';
+          showFeedback(`Error: ${message}`);
+        });
+        return;
+      }
+
+      if (button.action.type === 'command' && button.action.commandId) {
+        showFeedback(`Ejecutando: ${button.action.label}`);
+        executeCommand(button.action.commandId).catch(err => {
+          const message = err instanceof Error ? err.message : 'No se pudo conectar al server';
           showFeedback(`Error: ${message}`);
         });
         return;

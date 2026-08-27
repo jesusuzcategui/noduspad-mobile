@@ -6,6 +6,7 @@ import { StreamDeckGrid } from './StreamDeckGrid';
 import { EditModeProvider, useEditMode } from './EditModeContext';
 import { SEED_STATE } from './seedData';
 import { executeOBSCommand } from '../obs/obsCommands';
+import { executeCommand } from '../commandServer/commandServerClient';
 import { AllThemeProviders } from '../testUtils/AllThemeProviders';
 
 jest.mock('../obs/obsCommands', () => {
@@ -13,7 +14,13 @@ jest.mock('../obs/obsCommands', () => {
   return { ...actual, executeOBSCommand: jest.fn() };
 });
 
+jest.mock('../commandServer/commandServerClient', () => {
+  const actual = jest.requireActual('../commandServer/commandServerClient');
+  return { ...actual, executeCommand: jest.fn() };
+});
+
 const mockExecuteOBSCommand = executeOBSCommand as jest.MockedFunction<typeof executeOBSCommand>;
+const mockExecuteCommand = executeCommand as jest.MockedFunction<typeof executeCommand>;
 
 // Renders StreamDeckGrid alongside a button that toggles edit mode on, so tests
 // can exercise the edit-mode tap behavior without a real drawer.
@@ -34,6 +41,7 @@ const STORAGE_KEY = 'streamdeck-state-v2';
 beforeEach(async () => {
   await AsyncStorage.clear();
   mockExecuteOBSCommand.mockReset();
+  mockExecuteCommand.mockReset();
 });
 
 describe('StreamDeckGrid', () => {
@@ -139,6 +147,73 @@ describe('StreamDeckGrid', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('tap-feedback-banner').props.children).toBe('Error: No se pudo conectar a OBS');
+    });
+  });
+
+  it('executes the stored command when a configured command button is pressed', async () => {
+    mockExecuteCommand.mockResolvedValue(undefined);
+    const customState = {
+      ...SEED_STATE,
+      buttons: {
+        ...SEED_STATE.buttons,
+        'btn-lock-screen': {
+          ...SEED_STATE.buttons['btn-lock-screen'],
+          action: { type: 'command' as const, label: 'Bloquear pantalla', commandId: 'cmd-1' },
+        },
+      },
+    };
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(customState));
+
+    await render(
+      <AllThemeProviders>
+      <EditModeProvider>
+        <StreamDeckGrid />
+      </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('streamdeck-button-btn-lock-screen')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('streamdeck-button-btn-lock-screen'));
+
+    await waitFor(() => {
+      expect(mockExecuteCommand).toHaveBeenCalledWith('cmd-1');
+    });
+    expect(screen.getByTestId('tap-feedback-banner').props.children).toBe('Ejecutando: Bloquear pantalla');
+  });
+
+  it('shows an error banner when executing the command fails', async () => {
+    mockExecuteCommand.mockRejectedValue(new Error('server caído'));
+    const customState = {
+      ...SEED_STATE,
+      buttons: {
+        ...SEED_STATE.buttons,
+        'btn-lock-screen': {
+          ...SEED_STATE.buttons['btn-lock-screen'],
+          action: { type: 'command' as const, label: 'Bloquear pantalla', commandId: 'cmd-1' },
+        },
+      },
+    };
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(customState));
+
+    await render(
+      <AllThemeProviders>
+      <EditModeProvider>
+        <StreamDeckGrid />
+      </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('streamdeck-button-btn-lock-screen')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('streamdeck-button-btn-lock-screen'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tap-feedback-banner').props.children).toBe('Error: server caído');
     });
   });
 
