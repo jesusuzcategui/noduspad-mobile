@@ -15,6 +15,9 @@ export type StreamDeckButton = {
     // 'command' buttons) have no `command` and only show the descriptive label.
     command?: OBSCommandKey;
     sceneName?: string;
+    // Only set for type 'command' buttons saved through the noduspad-pc
+    // command picker — the ID of the command as stored on the server.
+    commandId?: string;
   };
 };
 

@@ -4,6 +4,7 @@ import { ButtonEditorModal } from './ButtonEditorModal';
 import type { StreamDeckButton } from './types';
 import { SEED_STATE } from './seedData';
 import { fetchOBSScenes } from '../obs/obsCommands';
+import * as commandServerClient from '../commandServer/commandServerClient';
 import { AllThemeProviders } from '../testUtils/AllThemeProviders';
 
 jest.mock('../obs/obsCommands', () => {
@@ -103,6 +104,33 @@ describe('ButtonEditorModal', () => {
       expect(getByTestId('editor-scenes-error').props.children).toBe('No se pudo conectar a OBS');
     });
     expect(getByTestId('editor-scenes-retry')).toBeTruthy();
+  });
+
+  it('lists existing commands and selects one, saving its commandId', async () => {
+    jest.spyOn(commandServerClient, 'listCommands').mockResolvedValue([
+      { id: 'cmd-1', label: 'Play/Pause', kind: 'media_key', target: 'play_pause' },
+    ]);
+
+    const onSave = jest.fn();
+    const commandButton: StreamDeckButton = {
+      ...button,
+      action: { type: 'command', label: '' },
+    };
+    const { getByTestId } = await renderModal({ button: commandButton, onClose: jest.fn(), onSave });
+
+    await fireEvent.press(getByTestId('editor-action-command'));
+    await waitFor(() => getByTestId('editor-existing-command-cmd-1'));
+    await fireEvent.press(getByTestId('editor-existing-command-cmd-1'));
+    await fireEvent.press(getByTestId('editor-save'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(
+        commandButton.id,
+        expect.objectContaining({
+          action: expect.objectContaining({ type: 'command', commandId: 'cmd-1' }),
+        }),
+      );
+    });
   });
 
   it('closes without saving when Cancelar is pressed', async () => {

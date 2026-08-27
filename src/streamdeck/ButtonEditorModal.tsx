@@ -14,6 +14,7 @@ import {
 import { QUICK_ICON_NAMES, StreamDeckIcon, type StreamDeckIconName } from './StreamDeckIcon';
 import { IconPickerModal } from './IconPickerModal';
 import { OBS_COMMANDS, fetchOBSScenes, type OBSCommandKey } from '../obs/obsCommands';
+import { listCommands, type CommandDTO } from '../commandServer/commandServerClient';
 import { useThemeColors } from '../theme/ThemeContext';
 import type { StreamDeckButton } from './types';
 import { radius, shadow, space, type } from '../theme/glass';
@@ -40,6 +41,9 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
   const [scenes, setScenes] = useState<string[] | null>(null);
   const [scenesLoading, setScenesLoading] = useState(false);
   const [scenesError, setScenesError] = useState<string | null>(null);
+  const [existingCommands, setExistingCommands] = useState<CommandDTO[] | null>(null);
+  const [commandsError, setCommandsError] = useState<string | null>(null);
+  const [selectedCommandId, setSelectedCommandId] = useState<string | null>(null);
   const isQuickIcon = (ICON_OPTIONS as string[]).includes(icon);
   const color = useThemeColors();
   const styles = createStyles(color);
@@ -55,7 +59,19 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
     setSelectedScene(button.action.sceneName ?? null);
     setScenes(null);
     setScenesError(null);
+    setSelectedCommandId(button.action.commandId ?? null);
+    setExistingCommands(null);
+    setCommandsError(null);
   }, [button]);
+
+  const handleActionTypeChange = (type: 'obs' | 'command') => {
+    setActionType(type);
+    if (type === 'command' && existingCommands === null) {
+      listCommands()
+        .then(setExistingCommands)
+        .catch(err => setCommandsError(err instanceof Error ? err.message : 'No se pudo conectar al server'));
+    }
+  };
 
   const handleSelectCommand = (key: OBSCommandKey) => {
     setCommandKey(key);
@@ -88,6 +104,7 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
         ...(actionType === 'obs' && commandKey === 'change-scene' && selectedScene
           ? { sceneName: selectedScene }
           : {}),
+        ...(actionType === 'command' && selectedCommandId ? { commandId: selectedCommandId } : {}),
       },
     });
     onClose();
@@ -165,13 +182,13 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
               <View style={styles.segmentRow}>
                 <Pressable
                   testID="editor-action-obs"
-                  onPress={() => setActionType('obs')}
+                  onPress={() => handleActionTypeChange('obs')}
                   style={[styles.segment, actionType === 'obs' && styles.segmentActive]}>
                   <Text style={actionType === 'obs' ? styles.segmentTextActive : styles.segmentText}>OBS</Text>
                 </Pressable>
                 <Pressable
                   testID="editor-action-command"
-                  onPress={() => setActionType('command')}
+                  onPress={() => handleActionTypeChange('command')}
                   style={[styles.segment, actionType === 'command' && styles.segmentActive]}>
                   <Text style={actionType === 'command' ? styles.segmentTextActive : styles.segmentText}>
                     Comando
@@ -241,6 +258,38 @@ export function ButtonEditorModal({ button, onClose, onSave }: ButtonEditorModal
                     </View>
                   )}
                 </>
+              )}
+
+              {actionType === 'command' && (
+                <View style={styles.sceneBox}>
+                  {commandsError && (
+                    <Text testID="editor-commands-error" style={styles.errorText}>
+                      {commandsError}
+                    </Text>
+                  )}
+                  {existingCommands === null && !commandsError && <ActivityIndicator color={color.accent} />}
+                  {existingCommands && (
+                    <View style={styles.commandWrap}>
+                      {existingCommands.map(cmd => (
+                        <Pressable
+                          key={cmd.id}
+                          testID={`editor-existing-command-${cmd.id}`}
+                          onPress={() => {
+                            setSelectedCommandId(cmd.id);
+                            setActionLabel(cmd.label);
+                          }}
+                          style={[styles.commandChip, selectedCommandId === cmd.id && styles.commandChipActive]}>
+                          <Text
+                            style={
+                              selectedCommandId === cmd.id ? styles.commandChipTextActive : styles.commandChipText
+                            }>
+                            {cmd.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
               )}
 
               <Text style={styles.label}>Descripción de la acción</Text>
