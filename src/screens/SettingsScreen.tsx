@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,10 +22,16 @@ import {
   GRID_RADIUS_MAX,
 } from '../theme/GridAppearanceContext';
 import { radius, shadow, space, type } from '../theme/glass';
+import {
+  DEFAULT_COMMAND_SERVER_CONFIG,
+  loadCommandServerConfig,
+  saveCommandServerConfig,
+  type CommandServerConfig,
+} from '../commandServer/commandServerStorage';
 
 const STEP = 2;
 
-type SettingsTab = 'obs' | 'appearance';
+type SettingsTab = 'obs' | 'appearance' | 'commands';
 
 export function SettingsScreen() {
   const [tab, setTab] = useState<SettingsTab>('obs');
@@ -55,9 +61,15 @@ export function SettingsScreen() {
               style={[styles.tab, tab === 'appearance' && styles.tabActive]}>
               <Text style={tab === 'appearance' ? styles.tabTextActive : styles.tabText}>Apariencia</Text>
             </Pressable>
+            <Pressable
+              testID="settings-tab-commands"
+              onPress={() => setTab('commands')}
+              style={[styles.tab, tab === 'commands' && styles.tabActive]}>
+              <Text style={tab === 'commands' ? styles.tabTextActive : styles.tabText}>Comandos</Text>
+            </Pressable>
           </View>
 
-          {tab === 'obs' ? <OBSSettingsTab /> : <AppearanceSettingsTab />}
+          {tab === 'obs' ? <OBSSettingsTab /> : tab === 'appearance' ? <AppearanceSettingsTab /> : <CommandServerSettingsTab />}
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenWithAppBar>
@@ -203,6 +215,73 @@ function AppearanceSettingsTab() {
         max={GRID_RADIUS_MAX}
         onChange={setBorderRadius}
         styles={styles}
+      />
+    </GlassPanel>
+  );
+}
+
+function CommandServerSettingsTab() {
+  const [config, setConfig] = useState<CommandServerConfig>(DEFAULT_COMMAND_SERVER_CONFIG);
+  const [isLoading, setIsLoading] = useState(true);
+  const color = useThemeColors();
+  const styles = createStyles(color);
+
+  useEffect(() => {
+    loadCommandServerConfig().then(loaded => {
+      setConfig(loaded);
+      setIsLoading(false);
+    });
+  }, []);
+
+  const update = (next: CommandServerConfig) => {
+    setConfig(next);
+    saveCommandServerConfig(next);
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={color.accent} />
+      </View>
+    );
+  }
+
+  return (
+    <GlassPanel style={styles.card}>
+      <Text style={styles.title}>Servidor de comandos</Text>
+
+      <Text style={styles.label}>Host</Text>
+      <TextInput
+        testID="command-server-host"
+        style={styles.input}
+        placeholder="localhost"
+        placeholderTextColor={color.textMuted}
+        autoCapitalize="none"
+        autoCorrect={false}
+        value={config.host}
+        onChangeText={host => update({ ...config, host })}
+      />
+
+      <Text style={styles.label}>Puerto</Text>
+      <TextInput
+        testID="command-server-port"
+        style={styles.input}
+        placeholder="7070"
+        placeholderTextColor={color.textMuted}
+        keyboardType="number-pad"
+        value={config.port}
+        onChangeText={port => update({ ...config, port })}
+      />
+
+      <Text style={styles.label}>Contraseña</Text>
+      <TextInput
+        testID="command-server-password"
+        style={styles.input}
+        placeholder="Contraseña del servidor"
+        placeholderTextColor={color.textMuted}
+        secureTextEntry
+        value={config.password}
+        onChangeText={password => update({ ...config, password })}
       />
     </GlassPanel>
   );

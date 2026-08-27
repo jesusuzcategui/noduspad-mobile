@@ -9,6 +9,7 @@ import { EditModeProvider } from '../streamdeck/EditModeContext';
 import { AllThemeProviders } from '../testUtils/AllThemeProviders';
 import { useTheme } from '../theme/ThemeContext';
 import { useGridAppearance } from '../theme/GridAppearanceContext';
+import { loadCommandServerConfig } from '../commandServer/commandServerStorage';
 
 jest.mock('obs-websocket-js', () => {
   return jest.fn().mockImplementation(() => ({
@@ -186,5 +187,22 @@ describe('SettingsScreen', () => {
 
     await fireEvent.press(getByTestId('grid-radius-decrement'));
     expect(latest.borderRadius).toBe(initialRadius - 2);
+  });
+
+  it('shows the Comandos tab and persists host/port/password', async () => {
+    const { getByTestId } = await renderSettingsScreen();
+    await waitFor(() => {
+      expect(getByTestId('obs-host')).toBeTruthy();
+    });
+
+    await fireEvent.press(getByTestId('settings-tab-commands'));
+    await fireEvent.changeText(getByTestId('command-server-host'), '192.168.1.16');
+    await fireEvent.changeText(getByTestId('command-server-port'), '7070');
+    await fireEvent.changeText(getByTestId('command-server-password'), 'secret');
+
+    await waitFor(async () => {
+      const saved = await loadCommandServerConfig();
+      expect(saved).toEqual({ host: '192.168.1.16', port: '7070', password: 'secret' });
+    });
   });
 });
