@@ -1,5 +1,10 @@
 import { saveCommandServerConfig } from './commandServerStorage';
-import { listCommands, createCommand, executeCommand, __resetSharedSocketForTests } from './commandServerClient';
+import {
+  listCommands,
+  createCommand,
+  executeCommand,
+  __resetSharedSocketForTests,
+} from './commandServerClient';
 
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
@@ -85,5 +90,51 @@ describe('commandServerClient', () => {
     socket.emit({ type: 'execute_error', command_id: 'abc', message: 'comando no encontrado' });
 
     await expect(promise).rejects.toThrow('comando no encontrado');
+  });
+
+  it('rejects a pending call when the socket closes mid-request', async () => {
+    const promise = listCommands();
+    await flushMicrotasks();
+    const socket = FakeWebSocket.instances[0];
+    socket.onopen?.();
+    socket.emit({ type: 'auth_ok' });
+    await flushMicrotasks();
+
+    // Connection drops (e.g. companion PC goes offline) before the server
+    // ever sends the 'commands' response — the pending listCommands() call
+    // must reject instead of hanging forever.
+    socket.close();
+
+    await expect(promise).rejects.toThrow();
+  });
+
+  it('opens a fresh socket for the next call after an auth_error, instead of reusing the poisoned one', async () => {
+    const firstPromise = createCommand('X', 'launch_app', 'x');
+    await flushMicrotasks();
+    const firstSocket = FakeWebSocket.instances[0];
+    firstSocket.onopen?.();
+    firstSocket.emit({ type: 'auth_error', message: 'incorrect password' });
+
+    await expect(firstPromise).rejects.toThrow('incorrect password');
+    expect(FakeWebSocket.instances).toHaveLength(1);
+
+    // Simulate the user fixing the password in Settings, then trying again.
+    await saveCommandServerConfig({ host: '192.168.1.16', port: '7070', password: 'secret' });
+
+    const secondPromise = listCommands();
+    await flushMicrotasks();
+
+    // A brand-new socket must have been opened — the previous one, whose
+    // authPromise is permanently rejected, must not be reused.
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    const secondSocket = FakeWebSocket.instances[1];
+    expect(secondSocket).not.toBe(firstSocket);
+
+    secondSocket.onopen?.();
+    secondSocket.emit({ type: 'auth_ok' });
+    await flushMicrotasks();
+    secondSocket.emit({ type: 'commands', commands: [] });
+
+    await expect(secondPromise).resolves.toEqual([]);
   });
 });

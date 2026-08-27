@@ -35,6 +35,25 @@ export function __resetSharedSocketForTests(): void {
   pendingExecute = new Map();
 }
 
+// Rejects every in-flight request (both the FIFO-matched pendingByType
+// waiters and the id-keyed pendingExecute entries) and clears them. Used
+// whenever the shared connection goes away — closed or errored — so a
+// dropped connection surfaces as a rejection instead of hanging callers
+// forever.
+function rejectAllPending(error: Error): void {
+  for (const type of Object.keys(pendingByType)) {
+    const waiters = pendingByType[type];
+    if (!waiters) continue;
+    for (const waiter of waiters) waiter.reject(error);
+  }
+  pendingByType = {};
+
+  for (const pending of pendingExecute.values()) {
+    pending.reject(error);
+  }
+  pendingExecute.clear();
+}
+
 async function getAuthenticatedSocket(): Promise<WebSocket> {
   if (sharedSocket && authPromise) {
     await authPromise;
@@ -49,11 +68,27 @@ async function getAuthenticatedSocket(): Promise<WebSocket> {
     socket.onopen = () => {
       socket.send(JSON.stringify({ type: 'auth', password: config.password }));
     };
-    socket.onmessage = event => handleMessage(event.data, resolve, reject);
-    socket.onerror = () => reject(new Error('No se pudo conectar al server de comandos'));
+    // A rejected authPromise must not be left cached: if we left
+    // sharedSocket/authPromise assigned, every subsequent call would take
+    // the fast path at the top of this function and keep re-awaiting the
+    // same already-rejected promise forever — even after the user fixes
+    // the password in Settings. Closing + nulling here forces the next
+    // call to open a fresh connection with the current config.
+    const rejectAndReset = (error: Error) => {
+      sharedSocket = null;
+      authPromise = null;
+      socket.close();
+      reject(error);
+    };
+    socket.onmessage = event => handleMessage(event.data, resolve, rejectAndReset);
+    socket.onerror = () => rejectAndReset(new Error('No se pudo conectar al server de comandos'));
     socket.onclose = () => {
       sharedSocket = null;
       authPromise = null;
+      // The connection can drop mid-request (realistic on a home network
+      // talking to the companion PC) — without this, any in-flight call
+      // would hang forever with no rejection and no timeout.
+      rejectAllPending(new Error('Conexión cerrada'));
     };
   });
 
