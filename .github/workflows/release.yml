@@ -1,0 +1,154 @@
+# .github/workflows/release.yml
+#
+# Builds NativeStreamDeck for Android and iOS and attaches the artifacts
+# to the GitHub Release created for a pushed `vX.Y.Z` tag.
+# Push-to-main does NOT trigger this — tag pushes only.
+#
+# Status:
+#   - Android: real release-signed .apk AND .aab, using a release keystore
+#     stored as GitHub secrets (RELEASE_KEYSTORE_BASE64 / RELEASE_STORE_PASSWORD /
+#     RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD). Verified locally end-to-end
+#     (real gradlew assembleRelease + apksigner verify against the actual
+#     generated keystore) before this workflow was written.
+#   - iOS: Simulator build only (no Apple Developer account yet — see
+#     project notes). Produces an unsigned .app runnable in Xcode's
+#     Simulator, NOT installable on a real device. Revisit once a paid
+#     Apple Developer account exists: real device / TestFlight builds need
+#     a signing certificate + provisioning profile as additional secrets.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # -----------------------------------------------------------------
+  # Android: release-signed .apk (direct install/testing) + .aab
+  # (Play Store-ready, for whenever that's the plan).
+  # -----------------------------------------------------------------
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      # Never written to the repo — decoded straight into the gradle
+      # build dir at build time, from a secret that only exists in
+      # GitHub's encrypted store.
+      - name: Decode release keystore
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+
+      - name: Build release .apk and .aab
+        env:
+          RELEASE_STORE_FILE: release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew assembleRelease bundleRelease
+
+      - name: Stage release assets
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk dist/noduspadv1-android.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab dist/noduspadv1-android.aab
+
+      - name: Remove the decoded keystore before anything else touches this workspace
+        if: always()
+        run: rm -f android/app/release.keystore
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: dist/*
+          if-no-files-found: error
+
+  # -----------------------------------------------------------------
+  # iOS: Simulator build only — no Apple Developer account yet, so no
+  # code signing is possible. Produces an unsigned .app that only runs
+  # in Xcode's Simulator, not on a real device.
+  # -----------------------------------------------------------------
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install
+
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild \
+            -workspace ios/noduspadv1.xcworkspace \
+            -scheme noduspadv1 \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Zip the .app bundle
+        run: |
+          mkdir -p dist
+          APP_PATH=$(find ios/build/Build/Products -maxdepth 1 -name "*.app" -print -quit)
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" dist/noduspadv1-ios-simulator.app.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios
+          path: dist/*
+          if-no-files-found: error
+
+  # -----------------------------------------------------------------
+  # Attach every platform's artifacts to the GitHub Release for this tag.
+  # -----------------------------------------------------------------
+  release:
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List staged release assets
+        run: ls -la artifacts
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: artifacts/*
+          fail_on_unmatched_files: true
