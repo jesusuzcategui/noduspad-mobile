@@ -5,7 +5,7 @@ module.exports = {
     './jest.setup.js',
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-async-storage|@react-navigation|react-native-gesture-handler|lucide-react-native)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-async-storage|@react-navigation|react-native-gesture-handler|react-native-image-picker|react-native-fs|lucide-react-native)/)',
   ],
   moduleNameMapper: {
     '^lucide-react-native$': '<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js',

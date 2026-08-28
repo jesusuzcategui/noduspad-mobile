@@ -29,10 +29,18 @@ import {
   type CommandServerConfig,
 } from '../commandServer/commandServerStorage';
 import { listCommands } from '../commandServer/commandServerClient';
+import { useProfileContext } from '../profiles/ProfileContext';
+import { CategoryNameModal } from '../streamdeck/CategoryNameModal';
 
 const STEP = 2;
 
-type SettingsTab = 'obs' | 'appearance' | 'commands';
+type SettingsTab = 'obs' | 'appearance' | 'commands' | 'profiles';
+
+const CREATE_PROFILE_TEST_IDS = {
+  input: 'settings-profile-name-input',
+  cancel: 'settings-profile-name-cancel',
+  save: 'settings-profile-name-save',
+};
 
 export function SettingsScreen() {
   const [tab, setTab] = useState<SettingsTab>('obs');
@@ -68,9 +76,23 @@ export function SettingsScreen() {
               style={[styles.tab, tab === 'commands' && styles.tabActive]}>
               <Text style={tab === 'commands' ? styles.tabTextActive : styles.tabText}>Comandos</Text>
             </Pressable>
+            <Pressable
+              testID="settings-tab-profiles"
+              onPress={() => setTab('profiles')}
+              style={[styles.tab, tab === 'profiles' && styles.tabActive]}>
+              <Text style={tab === 'profiles' ? styles.tabTextActive : styles.tabText}>Perfiles</Text>
+            </Pressable>
           </View>
 
-          {tab === 'obs' ? <OBSSettingsTab /> : tab === 'appearance' ? <AppearanceSettingsTab /> : <CommandServerSettingsTab />}
+          {tab === 'obs' ? (
+            <OBSSettingsTab />
+          ) : tab === 'appearance' ? (
+            <AppearanceSettingsTab />
+          ) : tab === 'commands' ? (
+            <CommandServerSettingsTab />
+          ) : (
+            <ProfilesSettingsTab />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenWithAppBar>
@@ -85,7 +107,9 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function OBSSettingsTab() {
-  const { config, setConfig, isLoadingConfig, status, errorMessage, connect, disconnect } = useOBSConnection();
+  const { activeProfileId } = useProfileContext();
+  const { config, setConfig, isLoadingConfig, status, errorMessage, connect, disconnect } =
+    useOBSConnection(activeProfileId);
   const color = useThemeColors();
   const styles = createStyles(color);
   const statusColor: Record<string, string> = {
@@ -222,6 +246,7 @@ function AppearanceSettingsTab() {
 }
 
 function CommandServerSettingsTab() {
+  const { activeProfileId } = useProfileContext();
   const [config, setConfig] = useState<CommandServerConfig>(DEFAULT_COMMAND_SERVER_CONFIG);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
@@ -236,15 +261,16 @@ function CommandServerSettingsTab() {
   };
 
   useEffect(() => {
-    loadCommandServerConfig().then(loaded => {
+    setIsLoading(true);
+    loadCommandServerConfig(activeProfileId).then(loaded => {
       setConfig(loaded);
       setIsLoading(false);
     });
-  }, []);
+  }, [activeProfileId]);
 
   const update = (next: CommandServerConfig) => {
     setConfig(next);
-    saveCommandServerConfig(next);
+    saveCommandServerConfig(activeProfileId, next);
   };
 
   const connect = async () => {
@@ -329,6 +355,50 @@ function CommandServerSettingsTab() {
           <Text style={styles.buttonText}>Probar conexión</Text>
         )}
       </Pressable>
+    </GlassPanel>
+  );
+}
+
+function ProfilesSettingsTab() {
+  const { profiles, activeProfileId, switchProfile, createProfile } = useProfileContext();
+  const [creating, setCreating] = useState(false);
+  const color = useThemeColors();
+  const styles = createStyles(color);
+
+  return (
+    <GlassPanel style={styles.card}>
+      <Text style={styles.title}>Perfiles</Text>
+
+      {profiles.map(profile => {
+        const active = profile.id === activeProfileId;
+        return (
+          <Pressable
+            key={profile.id}
+            testID={`settings-profile-${profile.id}`}
+            onPress={() => switchProfile(profile.id)}
+            style={[styles.segment, styles.profileRow, active && styles.segmentActive]}>
+            <Text style={active ? styles.segmentTextActive : styles.segmentText}>{profile.name}</Text>
+          </Pressable>
+        );
+      })}
+
+      <Pressable
+        testID="settings-profile-create"
+        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        onPress={() => setCreating(true)}>
+        <Text style={styles.buttonText}>+ Nuevo perfil</Text>
+      </Pressable>
+
+      <CategoryNameModal
+        visible={creating}
+        title="Nuevo perfil"
+        onCancel={() => setCreating(false)}
+        onSave={name => {
+          createProfile(name);
+          setCreating(false);
+        }}
+        testIDs={CREATE_PROFILE_TEST_IDS}
+      />
     </GlassPanel>
   );
 }
@@ -480,6 +550,9 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
     segmentRow: {
       flexDirection: 'row',
       gap: space.sm,
+      marginBottom: space.sm,
+    },
+    profileRow: {
       marginBottom: space.sm,
     },
     segment: {

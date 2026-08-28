@@ -11,6 +11,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useGridAppearance } from '../theme/GridAppearanceContext';
 import { loadCommandServerConfig } from '../commandServer/commandServerStorage';
 import * as commandServerClient from '../commandServer/commandServerClient';
+import { ProfileProvider } from '../profiles/ProfileContext';
 
 jest.mock('obs-websocket-js', () => {
   return jest.fn().mockImplementation(() => ({
@@ -39,13 +40,15 @@ const Stack = createNativeStackNavigator();
 function renderSettingsScreen() {
   return render(
     <AllThemeProviders>
-      <EditModeProvider>
-        <NavigationContainer>
-          <Stack.Navigator>
-            <Stack.Screen name="Settings">{() => <SettingsScreen />}</Stack.Screen>
-          </Stack.Navigator>
-        </NavigationContainer>
-      </EditModeProvider>
+      <ProfileProvider>
+        <EditModeProvider>
+          <NavigationContainer>
+            <Stack.Navigator>
+              <Stack.Screen name="Settings">{() => <SettingsScreen />}</Stack.Screen>
+            </Stack.Navigator>
+          </NavigationContainer>
+        </EditModeProvider>
+      </ProfileProvider>
     </AllThemeProviders>,
   );
 }
@@ -214,7 +217,7 @@ describe('SettingsScreen', () => {
     await fireEvent.changeText(getByTestId('command-server-password'), 'secret');
 
     await waitFor(async () => {
-      const saved = await loadCommandServerConfig();
+      const saved = await loadCommandServerConfig('default');
       expect(saved).toEqual({ host: '192.168.1.16', port: '7070', password: 'secret' });
     });
   });
@@ -235,5 +238,41 @@ describe('SettingsScreen', () => {
     });
     expect(getByTestId('command-server-status').props.children).toBe('Error de conexión');
     expect(getByTestId('command-server-error').props.children).toBe('Password incorrecto');
+  });
+
+  it('shows the Perfiles tab listing the default profile', async () => {
+    const { getByTestId } = await renderSettingsScreen();
+    await waitFor(() => {
+      expect(getByTestId('obs-host')).toBeTruthy();
+    });
+
+    await fireEvent.press(getByTestId('settings-tab-profiles'));
+
+    await waitFor(() => {
+      expect(getByTestId('settings-profile-default')).toBeTruthy();
+    });
+  });
+
+  it('creates a new profile from the Perfiles tab and switches to it', async () => {
+    const { getByTestId, queryAllByTestId } = await renderSettingsScreen();
+    await waitFor(() => {
+      expect(getByTestId('obs-host')).toBeTruthy();
+    });
+
+    await fireEvent.press(getByTestId('settings-tab-profiles'));
+    await fireEvent.press(getByTestId('settings-profile-create'));
+
+    await waitFor(() => {
+      expect(getByTestId('settings-profile-name-input')).toBeTruthy();
+    });
+
+    await fireEvent.changeText(getByTestId('settings-profile-name-input'), 'Windows');
+    await fireEvent.press(getByTestId('settings-profile-name-save'));
+
+    await waitFor(() => {
+      expect(queryAllByTestId('settings-profile-default')).toHaveLength(1);
+      const newProfileRows = queryAllByTestId(/^settings-profile-profile-/);
+      expect(newProfileRows).toHaveLength(1);
+    });
   });
 });

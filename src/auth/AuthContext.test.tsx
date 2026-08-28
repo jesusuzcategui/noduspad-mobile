@@ -15,7 +15,7 @@ describe('useAuth', () => {
   it('login with correct credentials returns true and sets isAuthenticated', async () => {
     const { result } = await renderHook(() => useAuth(), { wrapper });
     await act(() => {
-      const ok = result.current.login('uzcateguijesusdev@gmail.com', 'Dev1213web##');
+      const ok = result.current.login('uzcateguijesusdev@gmail.com', '1238022');
       expect(ok).toBe(true);
     });
     expect(result.current.isAuthenticated).toBe(true);
@@ -33,7 +33,7 @@ describe('useAuth', () => {
   it('logout resets isAuthenticated to false', async () => {
     const { result } = await renderHook(() => useAuth(), { wrapper });
     await act(() => {
-      result.current.login('uzcateguijesusdev@gmail.com', 'Dev1213web##');
+      result.current.login('uzcateguijesusdev@gmail.com', '1238022');
     });
     expect(result.current.isAuthenticated).toBe(true);
     await act(() => {

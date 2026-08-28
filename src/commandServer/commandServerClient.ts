@@ -26,6 +26,7 @@ type PendingResolver = {
 // forever with no user feedback.
 const REQUEST_TIMEOUT_MS = 10000;
 const TIMEOUT_MESSAGE = 'Tiempo de espera agotado — verificá la conexión al server';
+const PROFILE_CHANGED_MESSAGE = 'Perfil cambiado — conexión reiniciada';
 
 // Reused across calls so each button press / editor open doesn't pay the
 // connect + auth handshake cost again — mirrors src/obs/obsCommands.ts's
@@ -43,13 +44,56 @@ let pendingExecute: Map<string, PendingResolver> = new Map();
 // would then clobber the state of the OTHER, still-healthy connection.
 let connecting: Promise<WebSocket> | null = null;
 
-export function __resetSharedSocketForTests(): void {
-  sharedSocket = null;
-  authPromise = null;
-  pendingByType = {};
-  pendingExecute = new Map();
-  connecting = null;
+// Tracks which profile's connection config the next connection attempt
+// should load. Set by ProfileContext/useProfiles whenever the active
+// profile changes (on initial load and on every switch/create), BEFORE the
+// shared socket is reset — so the next reconnect picks up the new profile's
+// host/port/password instead of the previous profile's.
+let currentProfileId = 'default';
+
+export function setActiveProfileId(profileId: string): void {
+  currentProfileId = profileId;
 }
+
+// Bumped every time resetSharedConnection() runs so an in-flight connect
+// attempt that started under the PREVIOUS profile can recognize it's stale
+// once its awaits resolve — see the generation check in openSocket() below.
+let connectionGeneration = 0;
+
+// Public name for resetting the shared connection — used by profile
+// switching (see useProfiles.ts) so the next command reconnects under the
+// newly active profile instead of reusing a socket authenticated against
+// the previous profile's server.
+//
+// This must behave like a REAL reset, not just clear references: it closes
+// the actual socket that was live at the moment of the switch and rejects
+// every pending request, the same way resetConnection() does for a real
+// close/error. Otherwise the old socket is leaked (never closed) and any
+// pending request's 10s timeout timer is left dangling — when it later
+// fires, it would call resetConnection() against whatever sharedSocket
+// happens to be by then, which could be the NEW profile's healthy
+// connection, incorrectly tearing it down.
+//
+// `__resetSharedSocketForTests` is kept as an alias so existing tests
+// importing that name keep working unchanged.
+export function resetSharedConnection(): void {
+  connectionGeneration += 1;
+  connecting = null;
+  if (sharedSocket) {
+    // Reuse the existing per-socket-identity reset so it closes the socket
+    // that was actually live at switch time and rejects its pending
+    // requests — not whatever sharedSocket happens to be by the time this
+    // runs.
+    resetConnection(new Error(PROFILE_CHANGED_MESSAGE));
+  } else {
+    // No live socket yet (still connecting, or nothing ever opened) — still
+    // clear stale auth state and reject anything pending.
+    authPromise = null;
+    rejectAllPending(new Error(PROFILE_CHANGED_MESSAGE));
+  }
+}
+
+export const __resetSharedSocketForTests = resetSharedConnection;
 
 // Rejects every in-flight request (both the FIFO-matched pendingByType
 // waiters and the id-keyed pendingExecute entries) and clears them. Used
@@ -110,7 +154,22 @@ async function getAuthenticatedSocket(): Promise<WebSocket> {
 }
 
 async function openSocket(): Promise<WebSocket> {
-  const config = await loadCommandServerConfig();
+  // Captured BEFORE the async config load below, which reads whatever
+  // currentProfileId is at that instant. If a profile switch (and its
+  // resetSharedConnection() call) happens while we're awaiting that load,
+  // the generation check right after catches it — this attempt was started
+  // for the OLD profile and must not become the shared connection for the
+  // new one.
+  const generation = connectionGeneration;
+  const config = await loadCommandServerConfig(currentProfileId);
+
+  if (generation !== connectionGeneration) {
+    // A profile switch happened mid-load. Never create/assign a socket for
+    // this stale attempt — bail out so the caller's next real command
+    // triggers a fresh connect under the now-current profile's config.
+    throw new Error(PROFILE_CHANGED_MESSAGE);
+  }
+
   const socket = new WebSocket(`ws://${config.host}:${config.port}`);
   sharedSocket = socket;
 

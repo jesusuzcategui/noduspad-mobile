@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Image, Pressable, StyleSheet, Text } from 'react-native';
 import { StreamDeckIcon } from './StreamDeckIcon';
 import type { StreamDeckButton } from './types';
 import { useGridAppearance } from '../theme/GridAppearanceContext';
@@ -32,14 +32,27 @@ export function StreamDeckButtonTile({
       disabled={disabled}
       style={({ pressed }) => [
         styles.tile,
-        { width, height: width, borderRadius },
+        { width, height: width, borderRadius, overflow: 'hidden' },
         backgroundStyle,
         pressed && styles.pressed,
       ]}>
-      <StreamDeckIcon name={button.icon} size={84} color={button.iconColor} />
-      <Text style={[styles.label, { color: button.iconColor }]} numberOfLines={2}>
-        {button.label}
-      </Text>
+      {button.background.type === 'image' && (
+        <Image
+          testID={`streamdeck-button-${button.id}-image`}
+          source={{ uri: button.background.uri }}
+          style={[styles.backgroundImage, { borderRadius }]}
+          resizeMode="cover"
+          resizeMethod="resize"
+        />
+      )}
+      {!button.hideIcon && <StreamDeckIcon name={button.icon} size={84} color={button.iconColor} />}
+      {!button.hideLabel && (
+        <Text
+          style={[styles.label, { color: button.iconColor }, button.hideIcon && styles.labelNoIcon]}
+          numberOfLines={2}>
+          {button.label}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -54,9 +67,19 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     transform: [{ scale: 0.96 }],
   },
+  backgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   label: {
     ...type.label,
     textAlign: 'center',
     marginTop: space.xs,
+  },
+  labelNoIcon: {
+    marginTop: 0,
   },
 });

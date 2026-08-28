@@ -74,4 +74,10 @@ describe('AppBar', () => {
     await fireEvent.press(getByTestId('appbar-edit-mode-toggle'));
     expect(latest.isEditMode).toBe(false);
   });
+
+  it('renders the profile switcher as the first pill', async () => {
+    const { getByTestId } = await renderAppBar('Home', () => {});
+    expect(getByTestId('profile-switcher')).toBeTruthy();
+    expect(getByTestId('profile-switcher-name').props.children).toBe('Perfil 1');
+  });
 });

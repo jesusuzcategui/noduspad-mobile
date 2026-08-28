@@ -77,4 +77,10 @@ describe('GlassDrawerContent', () => {
 
     expect(flatStyle().borderColor).not.toBe(lightColor.panelHighlight);
   });
+
+  it('renders the profile switcher pinned at the bottom', async () => {
+    const { getByTestId } = await renderDrawer(buildProps(jest.fn()));
+    expect(getByTestId('profile-switcher')).toBeTruthy();
+    expect(getByTestId('profile-switcher-name').props.children).toBe('Perfil 1');
+  });
 });

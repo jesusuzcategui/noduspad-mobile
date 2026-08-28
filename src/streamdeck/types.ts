@@ -7,6 +7,12 @@ export type StreamDeckButton = {
   icon: StreamDeckIconName;
   iconColor: string;
   background: { type: 'color'; color: string } | { type: 'image'; uri: string };
+  // Only meaningful when background.type === 'image' — lets a button be a
+  // plain photo tile with no icon/text overlay. Optional so existing
+  // persisted buttons without these fields still type-check and default to
+  // "not hidden".
+  hideIcon?: boolean;
+  hideLabel?: boolean;
   action: {
     type: 'obs' | 'command';
     label: string;

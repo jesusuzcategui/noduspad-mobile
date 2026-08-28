@@ -1,27 +1,44 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
+import { Plus } from 'lucide-react-native';
 import { useStreamDeckState } from './useStreamDeckState';
 import { useEditMode } from './EditModeContext';
 import { CategoryRow } from './CategoryRow';
+import { CategoryNameModal } from './CategoryNameModal';
 import { TapFeedbackBanner } from './TapFeedbackBanner';
 import { ButtonEditorModal } from './ButtonEditorModal';
 import { executeOBSCommand } from '../obs/obsCommands';
 import { executeCommand } from '../commandServer/commandServerClient';
 import { useThemeColors } from '../theme/ThemeContext';
+import { useGridAppearance } from '../theme/GridAppearanceContext';
+import { useProfileContext } from '../profiles/ProfileContext';
 import type { StreamDeckButton } from './types';
 import { space } from '../theme/glass';
 
 const FEEDBACK_DURATION_MS = 1500;
 
 export function StreamDeckGrid() {
-  const { state, isLoading, reorderCategories, reorderButtonsInCategory, addButton, updateButton } =
-    useStreamDeckState();
+  const { activeProfileId } = useProfileContext();
+  const {
+    state,
+    isLoading,
+    reorderCategories,
+    reorderButtonsInCategory,
+    addButton,
+    updateButton,
+    createCategory,
+    renameCategory,
+    moveButtonToCategory,
+  } = useStreamDeckState(activeProfileId);
   const { isEditMode } = useEditMode();
   const color = useThemeColors();
+  const { borderRadius } = useGridAppearance();
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const feedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [editingButton, setEditingButton] = useState<StreamDeckButton | null>(null);
+  const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
   const showFeedback = useCallback((message: string) => {
     setFeedbackMessage(message);
@@ -68,6 +85,24 @@ export function StreamDeckGrid() {
     [addButton],
   );
 
+  const handleCancelCategoryModal = useCallback(() => {
+    setRenamingCategoryId(null);
+    setCreatingCategory(false);
+  }, []);
+
+  const handleSaveCategoryModal = useCallback(
+    (name: string) => {
+      if (renamingCategoryId) {
+        renameCategory(renamingCategoryId, name);
+      } else {
+        createCategory(name);
+      }
+      setRenamingCategoryId(null);
+      setCreatingCategory(false);
+    },
+    [renamingCategoryId, renameCategory, createCategory],
+  );
+
   useEffect(() => {
     return () => {
       if (feedbackTimeout.current) {
@@ -84,6 +119,11 @@ export function StreamDeckGrid() {
     );
   }
 
+  const categories = state.categoryOrder.map(id => state.categories[id]);
+  const currentCategoryId = editingButton
+    ? categories.find(cat => cat.buttonIds.includes(editingButton.id))?.id ?? null
+    : null;
+
   return (
     <View style={styles.container}>
       <DraggableFlatList
@@ -99,16 +139,41 @@ export function StreamDeckGrid() {
             onReorder={newButtonIds => reorderButtonsInCategory(categoryId, newButtonIds)}
             onButtonPress={handleButtonPress}
             onNameLongPress={drag}
+            onNamePress={() => setRenamingCategoryId(categoryId)}
             isEditMode={isEditMode}
             onAddButton={handleAddButton}
           />
         )}
+        ListFooterComponent={
+          isEditMode ? (
+            <Pressable
+              testID="add-category"
+              onPress={() => setCreatingCategory(true)}
+              style={[styles.addCategoryTile, { borderRadius, borderColor: color.inputBorder }]}>
+              <Plus color={color.textSecondary} size={28} />
+            </Pressable>
+          ) : undefined
+        }
       />
       <TapFeedbackBanner message={feedbackMessage} />
       <ButtonEditorModal
         button={editingButton}
+        categories={categories.map(cat => ({ id: cat.id, name: cat.name }))}
+        currentCategoryId={currentCategoryId}
+        onMoveCategory={newCategoryId => {
+          if (editingButton && currentCategoryId) {
+            moveButtonToCategory(editingButton.id, currentCategoryId, newCategoryId);
+          }
+        }}
         onClose={() => setEditingButton(null)}
         onSave={(buttonId, updates) => updateButton(buttonId, updates)}
+      />
+      <CategoryNameModal
+        visible={renamingCategoryId !== null || creatingCategory}
+        title={renamingCategoryId ? 'Renombrar categoría' : 'Nueva categoría'}
+        initialValue={renamingCategoryId ? state.categories[renamingCategoryId]?.name : undefined}
+        onCancel={handleCancelCategoryModal}
+        onSave={handleSaveCategoryModal}
       />
     </View>
   );
@@ -125,5 +190,13 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingVertical: space.lg,
+  },
+  addCategoryTile: {
+    marginHorizontal: space.lg,
+    paddingVertical: space.lg,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

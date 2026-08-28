@@ -6,6 +6,7 @@ import { useDashboardLayout } from './useBreakpoint';
 import { useEditMode } from '../streamdeck/EditModeContext';
 import { useTheme } from '../theme/ThemeContext';
 import { blur, blurTypeForScheme, radius, space, type } from '../theme/glass';
+import { ProfileSwitcher } from '../profiles/ProfileSwitcher';
 
 export function GlassDrawerContent({ state, navigation, descriptors }: DrawerContentComponentProps) {
   const layout = useDashboardLayout();
@@ -76,6 +77,8 @@ export function GlassDrawerContent({ state, navigation, descriptors }: DrawerCon
             <View style={[styles.editModeDot, isEditMode && styles.editModeDotActive]} />
           </Pressable>
         )}
+
+        <ProfileSwitcher variant="drawer" />
       </View>
     </View>
   );

@@ -6,7 +6,14 @@ export type CommandServerConfig = {
   password: string;
 };
 
-const STORAGE_KEY = 'command-server-connection-v1';
+// Legacy unnamespaced key — kept as a one-time migration read for the
+// 'default' profile only (see loadCommandServerConfig below) so users who
+// had a connection configured before profiles existed don't lose it.
+const LEGACY_STORAGE_KEY = 'command-server-connection-v1';
+
+function storageKeyFor(profileId: string): string {
+  return `${LEGACY_STORAGE_KEY}:${profileId}`;
+}
 
 export const DEFAULT_COMMAND_SERVER_CONFIG: CommandServerConfig = {
   host: 'localhost',
@@ -24,9 +31,12 @@ function isValidCommandServerConfig(value: unknown): value is CommandServerConfi
   );
 }
 
-export async function loadCommandServerConfig(): Promise<CommandServerConfig> {
+export async function loadCommandServerConfig(profileId: string): Promise<CommandServerConfig> {
   try {
-    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    let stored = await AsyncStorage.getItem(storageKeyFor(profileId));
+    if (!stored && profileId === 'default') {
+      stored = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+    }
     if (!stored) return DEFAULT_COMMAND_SERVER_CONFIG;
     const parsed: unknown = JSON.parse(stored);
     return isValidCommandServerConfig(parsed) ? parsed : DEFAULT_COMMAND_SERVER_CONFIG;
@@ -36,9 +46,9 @@ export async function loadCommandServerConfig(): Promise<CommandServerConfig> {
   }
 }
 
-export async function saveCommandServerConfig(config: CommandServerConfig): Promise<void> {
+export async function saveCommandServerConfig(profileId: string, config: CommandServerConfig): Promise<void> {
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    await AsyncStorage.setItem(storageKeyFor(profileId), JSON.stringify(config));
   } catch (error) {
     console.warn('CommandServer: failed to save connection config', error);
   }

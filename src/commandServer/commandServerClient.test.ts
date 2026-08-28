@@ -3,6 +3,8 @@ import {
   listCommands,
   createCommand,
   executeCommand,
+  resetSharedConnection,
+  setActiveProfileId,
   __resetSharedSocketForTests,
 } from './commandServerClient';
 
@@ -45,8 +47,9 @@ const flushMicrotasks = () => new Promise<void>(resolve => setImmediate(resolve)
 describe('commandServerClient', () => {
   beforeEach(async () => {
     FakeWebSocket.instances = [];
+    setActiveProfileId('default');
     __resetSharedSocketForTests();
-    await saveCommandServerConfig({ host: '192.168.1.16', port: '7070', password: 'secret' });
+    await saveCommandServerConfig('default', { host: '192.168.1.16', port: '7070', password: 'secret' });
   });
 
   it('authenticates then sends list_commands and resolves on the commands response', async () => {
@@ -119,7 +122,7 @@ describe('commandServerClient', () => {
     expect(FakeWebSocket.instances).toHaveLength(1);
 
     // Simulate the user fixing the password in Settings, then trying again.
-    await saveCommandServerConfig({ host: '192.168.1.16', port: '7070', password: 'secret' });
+    await saveCommandServerConfig('default', { host: '192.168.1.16', port: '7070', password: 'secret' });
 
     const secondPromise = listCommands();
     await flushMicrotasks();
@@ -210,5 +213,96 @@ describe('commandServerClient', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('resetSharedConnection closes the live socket and rejects pending requests instead of just nulling references', async () => {
+    const promise = listCommands();
+    await flushMicrotasks();
+    const socket = FakeWebSocket.instances[0];
+    socket.onopen?.();
+    socket.emit({ type: 'auth_ok' });
+    await flushMicrotasks();
+
+    let closed = false;
+    const originalClose = socket.close.bind(socket);
+    socket.close = () => {
+      closed = true;
+      originalClose();
+    };
+
+    resetSharedConnection();
+
+    expect(closed).toBe(true);
+    await expect(promise).rejects.toThrow();
+
+    // Next call must open a brand-new socket rather than reusing the torn
+    // down one.
+    const nextPromise = listCommands();
+    await flushMicrotasks();
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    const nextSocket = FakeWebSocket.instances[1];
+    expect(nextSocket).not.toBe(socket);
+    nextSocket.onopen?.();
+    nextSocket.emit({ type: 'auth_ok' });
+    await flushMicrotasks();
+    nextSocket.emit({ type: 'commands', commands: [] });
+    await expect(nextPromise).resolves.toEqual([]);
+  });
+
+  it('resetSharedConnection rejects a pending executeCommand call too, not just pendingByType waiters', async () => {
+    const promise = executeCommand('abc');
+    await flushMicrotasks();
+    const socket = FakeWebSocket.instances[0];
+    socket.onopen?.();
+    socket.emit({ type: 'auth_ok' });
+    await flushMicrotasks();
+
+    resetSharedConnection();
+
+    await expect(promise).rejects.toThrow();
+  });
+
+  it('a stale connect started before a profile switch does not win the race and assign itself as the shared socket', async () => {
+    // Config for the profile we're about to switch TO must exist before the
+    // switch happens (mirrors real usage — Settings would already have it).
+    await saveCommandServerConfig('profile-2', { host: '10.0.0.5', port: '9090', password: 'other' });
+
+    // Start a connect attempt for the 'default' profile — this synchronously
+    // reads currentProfileId and dispatches loadCommandServerConfig() before
+    // the socket is ever constructed; the actual config load doesn't resolve
+    // until the awaited microtask below.
+    const stalePromise = listCommands();
+    // Attach a no-op handler immediately so Node doesn't flag this as an
+    // unhandled rejection during the awaits below — the real assertion on
+    // the rejection happens further down via `.rejects`.
+    stalePromise.catch(() => {});
+
+    // Simulate a profile switch happening while that config load is still
+    // in flight, with NO await in between (so nothing lets the stale load
+    // resolve first) — mirrors exactly what useProfiles.switchProfile() does:
+    // currentProfileId is updated, then resetSharedConnection() runs.
+    setActiveProfileId('profile-2');
+    resetSharedConnection();
+
+    // Now let the stale attempt's config-load await resolve.
+    await flushMicrotasks();
+
+    // The stale attempt must have detected the generation mismatch and
+    // bailed out WITHOUT ever creating/assigning a socket for the old
+    // profile.
+    expect(FakeWebSocket.instances).toHaveLength(0);
+    await expect(stalePromise).rejects.toThrow();
+
+    // A fresh, real call now connects using the NEW profile's config.
+    const freshPromise = listCommands();
+    await flushMicrotasks();
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    const socket = FakeWebSocket.instances[0];
+    expect(socket.url).toBe('ws://10.0.0.5:9090');
+    socket.onopen?.();
+    socket.emit({ type: 'auth_ok' });
+    await flushMicrotasks();
+    socket.emit({ type: 'commands', commands: [] });
+    await expect(freshPromise).resolves.toEqual([]);
   });
 });

@@ -5,6 +5,7 @@ import { GlassPanel } from '../theme/GlassPanel';
 import { useThemeColors } from '../theme/ThemeContext';
 import { useEditMode } from '../streamdeck/EditModeContext';
 import { blur, radius, space, type } from '../theme/glass';
+import { ProfileSwitcher } from '../profiles/ProfileSwitcher';
 
 export type DashboardRouteName = 'Home' | 'Settings' | 'About';
 
@@ -24,6 +25,9 @@ export function AppBar({ activeRoute, onNavigate }: AppBarProps) {
   return (
     <View style={[styles.floatWrap, { paddingBottom: insets.bottom + space.md }]}>
       <GlassPanel style={styles.container} radius={radius.pill} blurAmount={blur.appBarAmount}>
+        <View style={styles.item}>
+          <ProfileSwitcher variant="pill" />
+        </View>
         {ROUTES.map(route => {
           const active = activeRoute === route;
           return (

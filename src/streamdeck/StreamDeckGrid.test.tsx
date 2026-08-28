@@ -36,7 +36,10 @@ function GridWithEditModeToggle() {
   );
 }
 
-const STORAGE_KEY = 'streamdeck-state-v2';
+// StreamDeckGrid is rendered here without a <ProfileProvider>, so it reads
+// activeProfileId from ProfileContext's inert default value ('default') —
+// see ProfileContext.tsx. That resolves to the namespaced key below.
+const STORAGE_KEY = 'streamdeck-state-v2:default';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -273,6 +276,129 @@ describe('StreamDeckGrid', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('editor-label').props.value).toBe('Nuevo botón');
+    });
+  });
+
+  it('does not render the create-category footer outside edit mode', async () => {
+    await render(
+      <AllThemeProviders>
+      <EditModeProvider>
+        <StreamDeckGrid />
+      </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('category-name-cat-obs')).toBeTruthy();
+    });
+
+    expect(screen.queryByTestId('add-category')).toBeNull();
+  });
+
+  it('shows the create-category footer in edit mode and opens the create modal when pressed', async () => {
+    await render(
+      <AllThemeProviders>
+      <EditModeProvider>
+        <GridWithEditModeToggle />
+      </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('category-name-cat-obs')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('test-toggle-edit-mode'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('add-category')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('add-category'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('category-name-input').props.value).toBe('');
+    });
+  });
+
+  it('opens the rename modal pre-filled with the current name when a category name is tapped in edit mode', async () => {
+    await render(
+      <AllThemeProviders>
+      <EditModeProvider>
+        <GridWithEditModeToggle />
+      </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('category-name-cat-obs')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('test-toggle-edit-mode'));
+    await fireEvent.press(screen.getByTestId('category-name-cat-obs'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('category-name-input').props.value).toBe(SEED_STATE.categories['cat-obs'].name);
+    });
+  });
+
+  it('persists a new category name after saving the rename modal', async () => {
+    await render(
+      <AllThemeProviders>
+      <EditModeProvider>
+        <GridWithEditModeToggle />
+      </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('category-name-cat-obs')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('test-toggle-edit-mode'));
+    await fireEvent.press(screen.getByTestId('category-name-cat-obs'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('category-name-input')).toBeTruthy();
+    });
+
+    await fireEvent.changeText(screen.getByTestId('category-name-input'), 'OBS Renombrado');
+    await fireEvent.press(screen.getByTestId('category-name-save'));
+
+    await waitFor(async () => {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      const parsed = JSON.parse(stored as string);
+      expect(parsed.categories['cat-obs'].name).toBe('OBS Renombrado');
+    });
+  });
+
+  it('wires the button editor category chip to moveButtonToCategory', async () => {
+    await render(
+      <AllThemeProviders>
+      <EditModeProvider>
+        <GridWithEditModeToggle />
+      </EditModeProvider>
+      </AllThemeProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('streamdeck-button-btn-scene-1')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('test-toggle-edit-mode'));
+    await fireEvent.press(screen.getByTestId('streamdeck-button-btn-scene-1'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('category-chip-cat-system')).toBeTruthy();
+    });
+
+    await fireEvent.press(screen.getByTestId('category-chip-cat-system'));
+
+    await waitFor(async () => {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      const parsed = JSON.parse(stored as string);
+      expect(parsed.categories['cat-system'].buttonIds).toContain('btn-scene-1');
+      expect(parsed.categories['cat-obs'].buttonIds).not.toContain('btn-scene-1');
     });
   });
 

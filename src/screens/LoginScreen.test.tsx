@@ -40,7 +40,7 @@ describe('LoginScreen', () => {
   it('clears the error on correct credentials', async () => {
     const { getByTestId, queryByTestId } = await renderLogin();
     await fireEvent.changeText(getByTestId('login-email'), 'uzcateguijesusdev@gmail.com');
-    await fireEvent.changeText(getByTestId('login-password'), 'Dev1213web##');
+    await fireEvent.changeText(getByTestId('login-password'), '1238022');
     await fireEvent.press(getByTestId('login-submit'));
     expect(queryByTestId('login-error')).toBeNull();
   });

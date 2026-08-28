@@ -3,7 +3,7 @@ import OBSWebSocket from 'obs-websocket-js';
 import { DEFAULT_OBS_CONFIG, loadOBSConfig, saveOBSConfig } from './obsConnectionStorage';
 import type { OBSConnectionConfig, OBSConnectionStatus } from './types';
 
-export function useOBSConnection() {
+export function useOBSConnection(profileId: string) {
   const [config, setConfig] = useState<OBSConnectionConfig>(DEFAULT_OBS_CONFIG);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [status, setStatus] = useState<OBSConnectionStatus>('idle');
@@ -12,7 +12,8 @@ export function useOBSConnection() {
 
   useEffect(() => {
     let cancelled = false;
-    loadOBSConfig().then(loaded => {
+    setIsLoadingConfig(true);
+    loadOBSConfig(profileId).then(loaded => {
       if (!cancelled) {
         setConfig(loaded);
         setIsLoadingConfig(false);
@@ -21,7 +22,7 @@ export function useOBSConnection() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [profileId]);
 
   useEffect(() => {
     return () => {
@@ -41,12 +42,12 @@ export function useOBSConnection() {
       });
       socketRef.current = socket;
       setStatus('connected');
-      await saveOBSConfig(config);
+      await saveOBSConfig(profileId, config);
     } catch (error) {
       setStatus('error');
       setErrorMessage(error instanceof Error ? error.message : 'No se pudo conectar a OBS');
     }
-  }, [config]);
+  }, [config, profileId]);
 
   const disconnect = useCallback(async () => {
     await socketRef.current?.disconnect();

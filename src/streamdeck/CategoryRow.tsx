@@ -20,6 +20,7 @@ type CategoryRowProps = {
   onReorder: (newButtonIds: string[]) => void;
   onButtonPress: (button: StreamDeckButton) => void;
   onNameLongPress?: () => void;
+  onNamePress?: () => void;
   isEditMode?: boolean;
   onAddButton?: (categoryId: string) => void;
 };
@@ -30,6 +31,7 @@ export function CategoryRow({
   onReorder,
   onButtonPress,
   onNameLongPress,
+  onNamePress,
   isEditMode = false,
   onAddButton,
 }: CategoryRowProps) {
@@ -51,10 +53,14 @@ export function CategoryRow({
     </Text>
   );
 
+  const namePressHandler = isEditMode && onNamePress ? onNamePress : undefined;
+
   return (
     <View style={styles.container}>
-      {onNameLongPress ? (
-        <Pressable onLongPress={onNameLongPress}>{nameElement}</Pressable>
+      {onNameLongPress || namePressHandler ? (
+        <Pressable onLongPress={onNameLongPress} onPress={namePressHandler}>
+          {nameElement}
+        </Pressable>
       ) : (
         nameElement
       )}

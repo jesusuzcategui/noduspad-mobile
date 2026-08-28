@@ -64,4 +64,43 @@ describe('CategoryRow', () => {
 
     expect(onAddButton).toHaveBeenCalledWith('cat-obs');
   });
+
+  it('calls onNamePress when the category name is pressed in edit mode', async () => {
+    const onNamePress = jest.fn();
+    const { getByTestId } = await render(
+      <AllThemeProviders>
+        <CategoryRow
+          category={category}
+          buttons={SEED_STATE.buttons}
+          onReorder={() => {}}
+          onButtonPress={() => {}}
+          isEditMode
+          onNamePress={onNamePress}
+        />
+      </AllThemeProviders>,
+    );
+
+    await fireEvent.press(getByTestId('category-name-cat-obs'));
+
+    expect(onNamePress).toHaveBeenCalled();
+  });
+
+  it('does not call onNamePress outside edit mode', async () => {
+    const onNamePress = jest.fn();
+    const { getByTestId } = await render(
+      <AllThemeProviders>
+        <CategoryRow
+          category={category}
+          buttons={SEED_STATE.buttons}
+          onReorder={() => {}}
+          onButtonPress={() => {}}
+          onNamePress={onNamePress}
+        />
+      </AllThemeProviders>,
+    );
+
+    await fireEvent.press(getByTestId('category-name-cat-obs'));
+
+    expect(onNamePress).not.toHaveBeenCalled();
+  });
 });
