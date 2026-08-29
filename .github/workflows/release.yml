@@ -124,7 +124,17 @@ jobs:
       - name: Zip the .app bundle
         run: |
           mkdir -p dist
-          APP_PATH=$(find ios/build/Build/Products -maxdepth 1 -name "*.app" -print -quit)
+          # Xcode's build output nests one directory deeper than the naive
+          # guess: Products/<Configuration>-<sdk>/AppName.app (e.g.
+          # Products/Release-iphonesimulator/noduspadv1.app), not directly
+          # under Products/ — maxdepth 1 here found nothing and ditto
+          # failed with "Cannot get the real path for source ''".
+          APP_PATH=$(find ios/build/Build/Products -maxdepth 2 -name "*.app" -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found under ios/build/Build/Products" >&2
+            find ios/build/Build/Products -maxdepth 2 >&2
+            exit 1
+          fi
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" dist/noduspadv1-ios-simulator.app.zip
 
       - uses: actions/upload-artifact@v7
