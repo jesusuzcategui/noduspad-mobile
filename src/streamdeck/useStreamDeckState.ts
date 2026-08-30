@@ -165,6 +165,35 @@ export function useStreamDeckState(profileId: string) {
     [profileId],
   );
 
+  const deleteButton = useCallback(
+    (buttonId: string) => {
+      setState(prev => {
+        if (!prev || !prev.buttons[buttonId]) return prev;
+        const ownerCategoryId = prev.categoryOrder.find(id =>
+          prev.categories[id].buttonIds.includes(buttonId),
+        );
+
+        const { [buttonId]: _removed, ...remainingButtons } = prev.buttons;
+        const next = {
+          ...prev,
+          buttons: remainingButtons,
+          categories: ownerCategoryId
+            ? {
+                ...prev.categories,
+                [ownerCategoryId]: {
+                  ...prev.categories[ownerCategoryId],
+                  buttonIds: prev.categories[ownerCategoryId].buttonIds.filter(id => id !== buttonId),
+                },
+              }
+            : prev.categories,
+        };
+        persist(next, profileId);
+        return next;
+      });
+    },
+    [profileId],
+  );
+
   const createCategory = useCallback(
     (name: string): string => {
       const trimmed = name.trim();
@@ -249,6 +278,7 @@ export function useStreamDeckState(profileId: string) {
     reorderButtonsInCategory,
     addButton,
     updateButton,
+    deleteButton,
     createCategory,
     renameCategory,
     moveButtonToCategory,

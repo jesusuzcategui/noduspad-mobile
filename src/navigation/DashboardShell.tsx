@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useDashboardLayout } from './useBreakpoint';
 import { GlassDrawerContent } from './GlassDrawerContent';
@@ -16,19 +16,35 @@ export type DashboardDrawerParamList = {
 
 const Drawer = createDrawerNavigator<DashboardDrawerParamList>();
 
+// Fixed/expanded width of the permanent tablet sidebar (GlassDrawerContent).
+const DRAWER_WIDTH_EXPANDED = 260;
+// Slim icon-only rail width when the sidebar is collapsed. Wide enough to fit
+// GlassDrawerContent's `item` padding (space.lg horizontal) plus a 24x24 icon
+// without clipping.
+const DRAWER_WIDTH_COLLAPSED = 72;
+
 export function DashboardShell() {
   const layout = useDashboardLayout();
   const isDrawerLayout = layout === 'drawer';
+  const [collapsed, setCollapsed] = useState(false);
+
+  const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
 
   return (
     <ProfileProvider>
       <EditModeProvider>
         <Drawer.Navigator
-          drawerContent={GlassDrawerContent}
+          drawerContent={props => (
+            <GlassDrawerContent
+              {...props}
+              collapsed={isDrawerLayout && collapsed}
+              onToggleCollapse={() => setCollapsed(c => !c)}
+            />
+          )}
           screenOptions={{
             headerShown: false,
             drawerType: isDrawerLayout ? 'permanent' : 'front',
-            drawerStyle: isDrawerLayout ? { width: 260 } : { width: 0 },
+            drawerStyle: isDrawerLayout ? { width: drawerWidth } : { width: 0 },
             swipeEnabled: isDrawerLayout,
           }}>
           <Drawer.Screen name="Home" component={HomeScreen} />

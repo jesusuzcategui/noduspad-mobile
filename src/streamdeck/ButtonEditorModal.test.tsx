@@ -1,9 +1,10 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { ButtonEditorModal } from './ButtonEditorModal';
 import type { StreamDeckButton } from './types';
 import { SEED_STATE } from './seedData';
-import { fetchOBSScenes } from '../obs/obsCommands';
+import { fetchOBSScenes, fetchVerticalScenes } from '../obs/obsCommands';
 import * as commandServerClient from '../commandServer/commandServerClient';
 import { launchImageLibrary } from 'react-native-image-picker';
 import RNFS from 'react-native-fs';
@@ -11,7 +12,7 @@ import { AllThemeProviders } from '../testUtils/AllThemeProviders';
 
 jest.mock('../obs/obsCommands', () => {
   const actual = jest.requireActual('../obs/obsCommands');
-  return { ...actual, fetchOBSScenes: jest.fn() };
+  return { ...actual, fetchOBSScenes: jest.fn(), fetchVerticalScenes: jest.fn() };
 });
 
 // react-native-image-picker's native module isn't linked in the test
@@ -38,6 +39,7 @@ jest.mock('../commandServer/commandServerClient', () => {
 });
 
 const mockFetchOBSScenes = fetchOBSScenes as jest.MockedFunction<typeof fetchOBSScenes>;
+const mockFetchVerticalScenes = fetchVerticalScenes as jest.MockedFunction<typeof fetchVerticalScenes>;
 const mockListCommands = commandServerClient.listCommands as jest.MockedFunction<
   typeof commandServerClient.listCommands
 >;
@@ -53,6 +55,7 @@ function renderModal(props: {
   button: StreamDeckButton | null;
   onClose: () => void;
   onSave: (buttonId: string, updates: Partial<StreamDeckButton>) => void;
+  onDelete?: (buttonId: string) => void;
 }) {
   return render(
     <AllThemeProviders>
@@ -63,6 +66,7 @@ function renderModal(props: {
 
 beforeEach(() => {
   mockFetchOBSScenes.mockReset();
+  mockFetchVerticalScenes.mockReset();
   mockListCommands.mockReset();
   mockListCommands.mockResolvedValue([]);
   mockLaunchImageLibrary.mockReset();
@@ -147,6 +151,77 @@ describe('ButtonEditorModal', () => {
       expect(getByTestId('editor-scenes-error').props.children).toBe('No se pudo conectar a OBS');
     });
     expect(getByTestId('editor-scenes-retry')).toBeTruthy();
+  });
+
+  it('shows the Aitum vertical-scene command chip in the OBS command list', async () => {
+    const { getByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn() });
+
+    expect(getByTestId('editor-command-change-vertical-scene')).toBeTruthy();
+  });
+
+  it('fetches live vertical scenes for "Cambiar de escena vertical (Aitum)" and fills the label on pick', async () => {
+    mockFetchVerticalScenes.mockResolvedValue(['Vertical A', 'Vertical B']);
+
+    const { getByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn() });
+
+    await fireEvent.press(getByTestId('editor-command-change-vertical-scene'));
+
+    await waitFor(() => {
+      expect(getByTestId('editor-scene-Vertical A')).toBeTruthy();
+    });
+    expect(mockFetchOBSScenes).not.toHaveBeenCalled();
+
+    await fireEvent.press(getByTestId('editor-scene-Vertical A'));
+
+    expect(getByTestId('editor-action-label').props.value).toBe('Cambiar a Vertical A');
+  });
+
+  it('selecting a vertical scene and saving persists commandKey change-vertical-scene and the chosen sceneName', async () => {
+    mockFetchVerticalScenes.mockResolvedValue(['Vertical A', 'Vertical B']);
+    const onSave = jest.fn();
+
+    const { getByTestId } = await renderModal({ button, onClose: jest.fn(), onSave });
+
+    await fireEvent.press(getByTestId('editor-command-change-vertical-scene'));
+    await waitFor(() => getByTestId('editor-scene-Vertical A'));
+    await fireEvent.press(getByTestId('editor-scene-Vertical A'));
+    await fireEvent.press(getByTestId('editor-save'));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(
+        button.id,
+        expect.objectContaining({
+          action: expect.objectContaining({
+            type: 'obs',
+            command: 'change-vertical-scene',
+            sceneName: 'Vertical A',
+          }),
+        }),
+      );
+    });
+  });
+
+  it('switching from "Cambiar de escena" to the vertical-scene command refetches instead of reusing the cached horizontal scenes', async () => {
+    mockFetchOBSScenes.mockResolvedValue(['Escena A']);
+    mockFetchVerticalScenes.mockResolvedValue(['Vertical A']);
+
+    const { getByTestId, queryByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn() });
+
+    await fireEvent.press(getByTestId('editor-command-change-scene'));
+    await waitFor(() => getByTestId('editor-scene-Escena A'));
+    expect(mockFetchOBSScenes).toHaveBeenCalledTimes(1);
+
+    await fireEvent.press(getByTestId('editor-command-change-vertical-scene'));
+
+    await waitFor(() => {
+      expect(mockFetchVerticalScenes).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(getByTestId('editor-scene-Vertical A')).toBeTruthy();
+    });
+    // The horizontal scene from the first command must not linger under the
+    // vertical picker (this is exactly the stale-cache bug being guarded).
+    expect(queryByTestId('editor-scene-Escena A')).toBeNull();
   });
 
   it('lists existing commands and selects one, saving its commandId', async () => {
@@ -501,6 +576,90 @@ describe('ButtonEditorModal', () => {
           expect.objectContaining({ background: { type: 'color', color: '#00ff88' } }),
         );
       });
+    });
+  });
+
+  describe('delete button', () => {
+    let alertSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      alertSpy.mockRestore();
+    });
+
+    it('does not render the delete affordance when onDelete is not provided', async () => {
+      const { queryByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn() });
+
+      expect(queryByTestId('editor-delete')).toBeNull();
+    });
+
+    it('renders the delete affordance when onDelete is provided', async () => {
+      const { getByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn(), onDelete: jest.fn() });
+
+      expect(getByTestId('editor-delete')).toBeTruthy();
+    });
+
+    it('shows a confirmation before deleting', async () => {
+      const onDelete = jest.fn();
+      const { getByTestId } = await renderModal({ button, onClose: jest.fn(), onSave: jest.fn(), onDelete });
+
+      await fireEvent.press(getByTestId('editor-delete'));
+
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+
+    it('calls onDelete with the button id and closes when the deletion is confirmed', async () => {
+      const onDelete = jest.fn();
+      const onClose = jest.fn();
+      const { getByTestId } = await renderModal({ button, onClose, onSave: jest.fn(), onDelete });
+
+      await fireEvent.press(getByTestId('editor-delete'));
+
+      const [, , alertButtons] = alertSpy.mock.calls[0];
+      const confirmButton = alertButtons.find((b: { text: string }) => b.text === 'Eliminar');
+      confirmButton.onPress();
+
+      expect(onDelete).toHaveBeenCalledWith(button.id);
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it('does not call onDelete when the confirmation is cancelled', async () => {
+      const onDelete = jest.fn();
+      const onClose = jest.fn();
+      const { getByTestId } = await renderModal({ button, onClose, onSave: jest.fn(), onDelete });
+
+      await fireEvent.press(getByTestId('editor-delete'));
+
+      const [, , alertButtons] = alertSpy.mock.calls[0];
+      const cancelButton = alertButtons.find((b: { text: string }) => b.text === 'Cancelar');
+      cancelButton.onPress?.();
+
+      expect(onDelete).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('cleans up a persisted image when confirming delete on a button with one', async () => {
+      const onDelete = jest.fn();
+      const buttonWithImage: StreamDeckButton = {
+        ...button,
+        background: { type: 'image', uri: 'file:///mock/documents/button-images/btn-scene-1-old.jpg' },
+      };
+      const { getByTestId } = await renderModal({ button: buttonWithImage, onClose: jest.fn(), onSave: jest.fn(), onDelete });
+
+      await fireEvent.press(getByTestId('editor-delete'));
+
+      const [, , alertButtons] = alertSpy.mock.calls[0];
+      const confirmButton = alertButtons.find((b: { text: string }) => b.text === 'Eliminar');
+      confirmButton.onPress();
+
+      await waitFor(() => {
+        expect(mockUnlink).toHaveBeenCalledWith('/mock/documents/button-images/btn-scene-1-old.jpg');
+      });
+      expect(onDelete).toHaveBeenCalledWith(buttonWithImage.id);
     });
   });
 });

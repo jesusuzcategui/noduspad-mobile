@@ -145,6 +145,41 @@ describe('useStreamDeckState', () => {
     expect(result.current.state).toEqual(SEED_STATE);
   });
 
+  it('deleteButton removes the button and its id from its category, and persists it', async () => {
+    const { result } = await renderHook(() => useStreamDeckState(PROFILE_ID));
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    const categoryId = SEED_STATE.categoryOrder[0];
+    const buttonId = SEED_STATE.categories[categoryId].buttonIds[0];
+
+    await act(async () => {
+      result.current.deleteButton(buttonId);
+    });
+
+    expect(result.current.state?.buttons[buttonId]).toBeUndefined();
+    expect(result.current.state?.categories[categoryId].buttonIds).not.toContain(buttonId);
+
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    const parsed = JSON.parse(stored as string);
+    expect(parsed.buttons[buttonId]).toBeUndefined();
+    expect(parsed.categories[categoryId].buttonIds).not.toContain(buttonId);
+  });
+
+  it('deleteButton does nothing for an unknown button id', async () => {
+    const { result } = await renderHook(() => useStreamDeckState(PROFILE_ID));
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      result.current.deleteButton('does-not-exist');
+    });
+
+    expect(result.current.state).toEqual(SEED_STATE);
+  });
+
   it('falls back to seed data when AsyncStorage.getItem throws', async () => {
     jest.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('native module unavailable'));
 

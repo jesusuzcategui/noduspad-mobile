@@ -27,6 +27,7 @@ export function StreamDeckGrid() {
     reorderButtonsInCategory,
     addButton,
     updateButton,
+    deleteButton,
     createCategory,
     renameCategory,
     moveButtonToCategory,
@@ -167,6 +168,7 @@ export function StreamDeckGrid() {
         }}
         onClose={() => setEditingButton(null)}
         onSave={(buttonId, updates) => updateButton(buttonId, updates)}
+        onDelete={buttonId => deleteButton(buttonId)}
       />
       <CategoryNameModal
         visible={renamingCategoryId !== null || creatingCategory}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -19,7 +20,7 @@ import { deletePersistedButtonImage, isPersistedButtonImageUri, persistButtonIma
 import { ColorPicker } from './ColorPicker';
 import { QUICK_ICON_NAMES, StreamDeckIcon, type StreamDeckIconName } from './StreamDeckIcon';
 import { IconPickerModal } from './IconPickerModal';
-import { OBS_COMMANDS, fetchOBSScenes, type OBSCommandKey } from '../obs/obsCommands';
+import { OBS_COMMANDS, fetchOBSScenes, fetchVerticalScenes, type OBSCommandKey } from '../obs/obsCommands';
 import { createCommand, listCommands, type CommandDTO, type CommandKind } from '../commandServer/commandServerClient';
 import { useThemeColors } from '../theme/ThemeContext';
 import type { StreamDeckButton } from './types';
@@ -49,6 +50,7 @@ type ButtonEditorModalProps = {
   onMoveCategory?: (categoryId: string) => void;
   onClose: () => void;
   onSave: (buttonId: string, updates: Partial<StreamDeckButton>) => void;
+  onDelete?: (buttonId: string) => void;
 };
 
 export function ButtonEditorModal({
@@ -58,6 +60,7 @@ export function ButtonEditorModal({
   onMoveCategory,
   onClose,
   onSave,
+  onDelete,
 }: ButtonEditorModalProps) {
   const [label, setLabel] = useState('');
   const [icon, setIcon] = useState<StreamDeckIconName>('movie-outline');
@@ -163,6 +166,12 @@ export function ButtonEditorModal({
   }, [actionType, existingCommands]);
 
   const handleSelectCommand = (key: OBSCommandKey) => {
+    // Captured BEFORE setCommandKey below (which won't be reflected in this
+    // closure's `commandKey` until the next render) — used to decide whether
+    // the cached `scenes` list still applies. Without this, switching from
+    // 'change-scene' to 'change-vertical-scene' (or vice versa) would show
+    // the WRONG canvas's stale scene list instead of refetching.
+    const sameSceneCommand = commandKey === key;
     setCommandKey(key);
     const command = OBS_COMMANDS.find(c => c.key === key)!;
     if (!command.needsScene) {
@@ -170,10 +179,11 @@ export function ButtonEditorModal({
       setSelectedScene(null);
       return;
     }
-    if (scenes) return;
+    if (sameSceneCommand && scenes) return;
     setScenesLoading(true);
     setScenesError(null);
-    fetchOBSScenes()
+    const fetchScenes = key === 'change-vertical-scene' ? fetchVerticalScenes : fetchOBSScenes;
+    fetchScenes()
       .then(setScenes)
       .catch(err => setScenesError(err instanceof Error ? err.message : 'No se pudo conectar a OBS'))
       .finally(() => setScenesLoading(false));
@@ -224,7 +234,9 @@ export function ButtonEditorModal({
         type: actionType,
         label: actionLabel.trim() || label.trim() || button.label,
         ...(actionType === 'obs' && commandKey ? { command: commandKey } : {}),
-        ...(actionType === 'obs' && commandKey === 'change-scene' && selectedScene
+        ...(actionType === 'obs' &&
+        (commandKey === 'change-scene' || commandKey === 'change-vertical-scene') &&
+        selectedScene
           ? { sceneName: selectedScene }
           : {}),
         ...(actionType === 'command' && selectedCommandId ? { commandId: selectedCommandId } : {}),
@@ -237,6 +249,24 @@ export function ButtonEditorModal({
       deletePersistedButtonImage(initialPersistedUri);
     }
     onClose();
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Eliminar botón', '¿Seguro que querés eliminar este botón? Esta acción no se puede deshacer.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: () => {
+          if (button.background.type === 'image' && isPersistedButtonImageUri(button.background.uri)) {
+            // Best-effort cleanup: never block the delete on this succeeding.
+            deletePersistedButtonImage(button.background.uri);
+          }
+          onDelete?.(button.id);
+          onClose();
+        },
+      },
+    ]);
   };
 
   return (
@@ -453,7 +483,7 @@ export function ButtonEditorModal({
                     ))}
                   </View>
 
-                  {commandKey === 'change-scene' && (
+                  {(commandKey === 'change-scene' || commandKey === 'change-vertical-scene') && (
                     <View style={styles.sceneBox}>
                       {scenesLoading && <ActivityIndicator testID="editor-scenes-loading" color={color.accent} />}
                       {scenesError && (
@@ -461,7 +491,7 @@ export function ButtonEditorModal({
                           <Text testID="editor-scenes-error" style={styles.errorText}>
                             {scenesError}
                           </Text>
-                          <Pressable testID="editor-scenes-retry" onPress={() => handleSelectCommand('change-scene')}>
+                          <Pressable testID="editor-scenes-retry" onPress={() => handleSelectCommand(commandKey)}>
                             <Text style={styles.retryText}>Reintentar</Text>
                           </Pressable>
                         </View>
@@ -656,6 +686,12 @@ export function ButtonEditorModal({
                 onChangeText={setActionLabel}
               />
 
+              {onDelete && (
+                <Pressable testID="editor-delete" style={styles.deleteButton} onPress={handleDelete}>
+                  <Text style={styles.deleteButtonText}>Eliminar botón</Text>
+                </Pressable>
+              )}
+
               <View style={styles.buttonRow}>
                 <Pressable testID="editor-cancel" style={styles.cancelButton} onPress={onClose}>
                   <Text style={styles.cancelButtonText}>Cancelar</Text>
@@ -707,13 +743,13 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
   label: {
     ...type.caption,
     color: color.textSecondary,
-    marginBottom: space.xs,
-    marginTop: space.sm,
+    marginBottom: 12,
+    marginTop: 16,
   },
   input: {
     borderWidth: 1,
     borderColor: color.inputBorder,
-    borderRadius: radius.input,
+    borderRadius: 8,
     backgroundColor: color.inputFill,
     color: color.textPrimary,
     paddingHorizontal: space.lg,
@@ -727,7 +763,7 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
   iconSwatch: {
     width: 48,
     height: 48,
-    borderRadius: radius.chip,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: color.inputBorder,
     backgroundColor: color.inputFill,
@@ -746,6 +782,7 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
   colorRow: {
     flexDirection: 'row',
     gap: space.sm,
+    marginBottom: 12,
   },
   colorSwatch: {
     width: 36,
@@ -760,11 +797,12 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
   segmentRow: {
     flexDirection: 'row',
     gap: space.sm,
+    marginBottom: 12,
   },
   segment: {
     flex: 1,
     paddingVertical: space.sm + 2,
-    borderRadius: radius.input,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: color.inputBorder,
     alignItems: 'center',
@@ -789,7 +827,7 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
   commandChip: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    borderRadius: radius.chip,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: color.inputBorder,
     backgroundColor: color.inputFill,
@@ -812,7 +850,7 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
   pickImageButton: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    borderRadius: radius.chip,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: color.inputBorder,
     backgroundColor: color.inputFill,
@@ -861,15 +899,27 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
     ...type.label,
     color: color.accent,
   },
+  deleteButton: {
+    paddingVertical: space.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: color.danger,
+    alignItems: 'center',
+    marginTop: space.xl,
+  },
+  deleteButtonText: {
+    ...type.label,
+    color: color.danger,
+  },
   buttonRow: {
     flexDirection: 'row',
     gap: space.md,
-    marginTop: space.xl,
+    marginTop: space.md,
   },
   cancelButton: {
     flex: 1,
     paddingVertical: space.md,
-    borderRadius: radius.input,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: color.inputBorder,
     alignItems: 'center',
@@ -881,7 +931,7 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
   saveButton: {
     flex: 1,
     paddingVertical: space.md,
-    borderRadius: radius.input,
+    borderRadius: 8,
     backgroundColor: color.accent,
     alignItems: 'center',
   },

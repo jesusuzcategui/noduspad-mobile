@@ -183,13 +183,13 @@ export function ColorPicker({ value, onChange, testID }: ColorPickerProps) {
 function createStyles(color: ReturnType<typeof useThemeColors>) {
   return StyleSheet.create({
     container: {
-      gap: space.xs,
+      gap: 12,
     },
     previewRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: space.sm,
-      marginBottom: space.xs,
+      marginBottom: 4,
     },
     preview: {
       width: 36,

@@ -10,9 +10,12 @@ type ProfileSwitcherProps = {
   // drawer (GlassDrawerContent). 'pill': same content styled as a pill row
   // item, for the phone/portrait AppBar.
   variant?: 'drawer' | 'pill';
+  // When true (collapsed tablet sidebar rail), render only the avatar circle
+  // and hide the name label so the switcher doesn't overflow the slim width.
+  compact?: boolean;
 };
 
-export function ProfileSwitcher({ variant = 'drawer' }: ProfileSwitcherProps) {
+export function ProfileSwitcher({ variant = 'drawer', compact = false }: ProfileSwitcherProps) {
   const { profiles, activeProfileId } = useProfileContext();
   const [modalVisible, setModalVisible] = useState(false);
   const color = useThemeColors();
@@ -26,16 +29,21 @@ export function ProfileSwitcher({ variant = 'drawer' }: ProfileSwitcherProps) {
       <Pressable
         testID="profile-switcher"
         onPress={() => setModalVisible(true)}
-        style={variant === 'pill' ? styles.pillContainer : styles.container}>
+        style={[
+          variant === 'pill' ? styles.pillContainer : styles.container,
+          compact && styles.containerCompact,
+        ]}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initial}</Text>
         </View>
-        <Text
-          testID="profile-switcher-name"
-          style={variant === 'pill' ? styles.pillName : styles.name}
-          numberOfLines={1}>
-          {activeProfile?.name}
-        </Text>
+        {!compact && (
+          <Text
+            testID="profile-switcher-name"
+            style={variant === 'pill' ? styles.pillName : styles.name}
+            numberOfLines={1}>
+            {activeProfile?.name}
+          </Text>
+        )}
       </Pressable>
       <ProfileListModal visible={modalVisible} onClose={() => setModalVisible(false)} />
     </>
@@ -54,6 +62,10 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
       borderTopWidth: 1,
       borderTopColor: color.panelBorder,
       paddingTop: space.lg,
+    },
+    containerCompact: {
+      justifyContent: 'center',
+      paddingHorizontal: 0,
     },
     pillContainer: {
       flexDirection: 'row',
