@@ -6,7 +6,7 @@
 
 - App: NativeStreamDeck, React Native 0.87, React 19, TypeScript, no nav/UI libs installed yet.
 - Repo currently has only the default RN scaffold (`App.tsx`).
-- Prior session established: UI-mock phase, no real backend yet; test login credential is `uzcateguijesusdev@gmail.com` / `Dev1213web##`.
+- Prior session established: UI-mock phase, no real backend yet; test login credential is `test@example.com` / `test-password-123`.
 - This pass narrows the app's command scope to **OBS-websocket only** — no companion server / arbitrary OS command execution (that remains a separate future sub-project, out of scope here and not built in this pass).
 
 ## Decisions

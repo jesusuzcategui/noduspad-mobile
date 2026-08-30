@@ -31,7 +31,7 @@ The user runs OBS on a separate PC while streaming/recording, and keeps the tabl
 - **Button creation/editing:** a drawer lets the user set icon, background color (or background image instead of color), icon color (default white), label, and the action (OBS action or custom command), grouped by category (default category: OBS).
 - **Settings:** OBS connection config, plus border-radius and gap values for the button grid.
 - **Constraint — command scope:** custom OS command execution is explicitly out of scope until the companion-server sub-project is built; only OBS-websocket actions are planned for the near term.
-- **Constraint — auth:** mock/hardcoded credentials for this phase (`src/config/authConfig.ts`), no real backend, no persistence (AsyncStorage or otherwise) yet.
+- **Constraint — auth:** real local, on-device account system (device-lock, not multi-tenant) — one salted+PBKDF2-hashed `Account` persisted in AsyncStorage via `src/auth/accountStorage.ts`, no backend/server. The old hardcoded `src/config/authConfig.ts` credentials are gone; a user registers on first launch via `RegisterScreen`.
 - **Tech stack (confirmed from the codebase):** React Native 0.87, React 19, TypeScript, React Navigation (native-stack + drawer), react-native-reanimated + gesture-handler, crypto-js for the mock auth hash.
 
 ## Evidence on Hand

@@ -1,4 +1,46 @@
 /* eslint-env jest */
+// authService's PBKDF2 (100k iterations, SHA256, via crypto-js's pure-JS
+// implementation — no native acceleration) takes multiple seconds per call.
+// Several auth-flow tests hash a password more than once (seed + login,
+// register + login, etc.), which can exceed Jest's default 5s per-test
+// timeout on a loaded machine. Raise it suite-wide rather than patch every
+// affected test file individually.
+jest.setTimeout(30000);
+
+// The real react-native-get-random-values package can't be loaded verbatim
+// under Jest: its `let module = null` top-level declaration collides with
+// Jest's own script-wrapper `module` binding and throws a SyntaxError — a
+// Jest-runtime incompatibility, unrelated to what the package actually does.
+// This mock reproduces the one observable contract authService.ts depends on:
+// after "importing" it, `global.crypto.getRandomValues` exists and works,
+// without needing a native TurboModule — mirroring the real package's own
+// documented fallback path for environments without native crypto (e.g.
+// remote JS debugging). It only installs anything when crypto is missing, so
+// under Node (which already ships a real crypto.getRandomValues) this is a
+// no-op — day-to-day tests still exercise Node's own crypto. This mock
+// exists so `require('react-native-get-random-values')` doesn't throw under
+// Jest at all (see the comment above it); it can't be used to prove the
+// polyfill is what saves generateSalt() on a real device, because crypto-js
+// itself falls back to Node's `require('crypto')` whenever that's
+// available — which it always is under Jest, unlike Hermes. See
+// authService.test.ts's structural checks (package.json dependency +
+// index.js import order) for how that gap is actually guarded.
+jest.mock('react-native-get-random-values', () => {
+  if (typeof global.crypto !== 'object' || global.crypto === null) {
+    global.crypto = {};
+  }
+  if (typeof global.crypto.getRandomValues !== 'function') {
+    global.crypto.getRandomValues = function getRandomValues(array) {
+      for (let i = 0; i < array.length; i++) {
+        array[i] = Math.floor(Math.random() * 256);
+      }
+      return array;
+    };
+  }
+  return {};
+});
+require('react-native-get-random-values');
+
 jest.mock('react-native-safe-area-context', () => {
   const mock = require('react-native-safe-area-context/jest/mock');
   // The mock module is emitted with __esModule interop (`exports.default = {...}`);

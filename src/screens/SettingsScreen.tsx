@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { ScreenWithAppBar } from '../navigation/ScreenWithAppBar';
+import { useAuth } from '../auth/AuthContext';
 import { GlassPanel } from '../theme/GlassPanel';
 import { useOBSConnection } from '../obs/useOBSConnection';
 import { useThemeColors, useTheme, type ThemeMode } from '../theme/ThemeContext';
@@ -361,9 +363,31 @@ function CommandServerSettingsTab() {
 
 function ProfilesSettingsTab() {
   const { profiles, activeProfileId, switchProfile, createProfile } = useProfileContext();
+  const { resetAccount } = useAuth();
   const [creating, setCreating] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const color = useThemeColors();
   const styles = createStyles(color);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Cerrar sesión y borrar cuenta',
+      'Esto borrará la cuenta local y vas a tener que registrarte de nuevo. No hay forma de recuperar la cuenta actual. ¿Querés continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar cuenta',
+          style: 'destructive',
+          onPress: async () => {
+            const ok = await resetAccount();
+            if (!ok) {
+              setDeleteAccountError('No se pudo borrar la cuenta. Intentá de nuevo.');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <GlassPanel style={styles.card}>
@@ -399,6 +423,18 @@ function ProfilesSettingsTab() {
         }}
         testIDs={CREATE_PROFILE_TEST_IDS}
       />
+
+      {deleteAccountError !== null && (
+        <Text testID="settings-delete-account-error" style={styles.error}>
+          {deleteAccountError}
+        </Text>
+      )}
+      <Pressable
+        testID="settings-delete-account"
+        style={({ pressed }) => [styles.dangerButton, pressed && styles.dangerButtonPressed]}
+        onPress={handleDeleteAccount}>
+        <Text style={styles.dangerButtonText}>Cerrar sesión y borrar cuenta</Text>
+      </Pressable>
     </GlassPanel>
   );
 }
@@ -546,6 +582,23 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
       ...type.label,
       fontSize: 16,
       color: '#ffffff',
+    },
+    dangerButton: {
+      backgroundColor: 'transparent',
+      borderRadius: radius.input,
+      borderWidth: 1,
+      borderColor: color.danger,
+      paddingVertical: space.md + 2,
+      alignItems: 'center',
+      marginTop: space.xl,
+    },
+    dangerButtonPressed: {
+      backgroundColor: color.danger,
+    },
+    dangerButtonText: {
+      ...type.label,
+      fontSize: 16,
+      color: color.danger,
     },
     segmentRow: {
       flexDirection: 'row',

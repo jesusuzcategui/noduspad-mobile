@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -12,6 +13,7 @@ import { useGridAppearance } from '../theme/GridAppearanceContext';
 import { loadCommandServerConfig } from '../commandServer/commandServerStorage';
 import * as commandServerClient from '../commandServer/commandServerClient';
 import { ProfileProvider } from '../profiles/ProfileContext';
+import { AuthProvider } from '../auth/AuthContext';
 
 jest.mock('obs-websocket-js', () => {
   return jest.fn().mockImplementation(() => ({
@@ -40,15 +42,17 @@ const Stack = createNativeStackNavigator();
 function renderSettingsScreen() {
   return render(
     <AllThemeProviders>
-      <ProfileProvider>
-        <EditModeProvider>
-          <NavigationContainer>
-            <Stack.Navigator>
-              <Stack.Screen name="Settings">{() => <SettingsScreen />}</Stack.Screen>
-            </Stack.Navigator>
-          </NavigationContainer>
-        </EditModeProvider>
-      </ProfileProvider>
+      <AuthProvider>
+        <ProfileProvider>
+          <EditModeProvider>
+            <NavigationContainer>
+              <Stack.Navigator>
+                <Stack.Screen name="Settings">{() => <SettingsScreen />}</Stack.Screen>
+              </Stack.Navigator>
+            </NavigationContainer>
+          </EditModeProvider>
+        </ProfileProvider>
+      </AuthProvider>
     </AllThemeProviders>,
   );
 }
@@ -273,6 +277,84 @@ describe('SettingsScreen', () => {
       expect(queryAllByTestId('settings-profile-default')).toHaveLength(1);
       const newProfileRows = queryAllByTestId(/^settings-profile-profile-/);
       expect(newProfileRows).toHaveLength(1);
+    });
+  });
+
+  describe('delete account', () => {
+    let alertSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      alertSpy.mockRestore();
+    });
+
+    it('shows a destructive confirmation dialog from the Perfiles tab', async () => {
+      const { getByTestId } = await renderSettingsScreen();
+      await waitFor(() => {
+        expect(getByTestId('obs-host')).toBeTruthy();
+      });
+
+      await fireEvent.press(getByTestId('settings-tab-profiles'));
+      await fireEvent.press(getByTestId('settings-delete-account'));
+
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      const [, , buttons] = alertSpy.mock.calls[0];
+      expect(buttons.some((b: { style?: string }) => b.style === 'destructive')).toBe(true);
+    });
+
+    it('deletes the stored account when confirmed', async () => {
+      await AsyncStorage.setItem(
+        'account-v1',
+        JSON.stringify({ name: 'Jesus', email: 'jesus@example.com', passwordHash: 'x', salt: 'y' }),
+      );
+
+      const { getByTestId } = await renderSettingsScreen();
+      await waitFor(() => {
+        expect(getByTestId('obs-host')).toBeTruthy();
+      });
+
+      await fireEvent.press(getByTestId('settings-tab-profiles'));
+      await fireEvent.press(getByTestId('settings-delete-account'));
+
+      const [, , buttons] = alertSpy.mock.calls[0];
+      const confirmButton = buttons.find((b: { style?: string }) => b.style === 'destructive');
+      await confirmButton.onPress();
+
+      await waitFor(async () => {
+        await expect(AsyncStorage.getItem('account-v1')).resolves.toBeNull();
+      });
+    });
+
+    it('shows an inline error when the delete fails, instead of silently doing nothing', async () => {
+      await AsyncStorage.setItem(
+        'account-v1',
+        JSON.stringify({ name: 'Jesus', email: 'jesus@example.com', passwordHash: 'x', salt: 'y' }),
+      );
+      const removeItemSpy = jest
+        .spyOn(AsyncStorage, 'removeItem')
+        .mockRejectedValueOnce(new Error('disk error'));
+
+      const { getByTestId } = await renderSettingsScreen();
+      await waitFor(() => {
+        expect(getByTestId('obs-host')).toBeTruthy();
+      });
+
+      await fireEvent.press(getByTestId('settings-tab-profiles'));
+      await fireEvent.press(getByTestId('settings-delete-account'));
+
+      const [, , buttons] = alertSpy.mock.calls[0];
+      const confirmButton = buttons.find((b: { style?: string }) => b.style === 'destructive');
+      await confirmButton.onPress();
+
+      await waitFor(() => {
+        expect(getByTestId('settings-delete-account-error').props.children).toBe(
+          'No se pudo borrar la cuenta. Intentá de nuevo.',
+        );
+      });
+      removeItemSpy.mockRestore();
     });
   });
 });

@@ -152,12 +152,12 @@ Expected: FAIL — `Cannot find module './authService'`
 Create `src/config/authConfig.ts`:
 
 ```ts
-export const AUTH_EMAIL = 'uzcateguijesusdev@gmail.com';
+export const AUTH_EMAIL = 'test@example.com';
 export const AUTH_PASSWORD_HASH =
   '0eb21b7509b5e98f7d13611b6533c525f3642fab78b2b6676fc5a804577c1220';
 ```
 
-(This hash is SHA-256 of `Dev1213web##` — the mock login password from the spec.)
+(This hash is SHA-256 of `test-password-123` — the mock login password from the spec.)
 
 - [ ] **Step 4: Write the minimal implementation**
 
@@ -225,7 +225,7 @@ describe('useAuth', () => {
   it('login with correct credentials returns true and sets isAuthenticated', () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     act(() => {
-      const ok = result.current.login('uzcateguijesusdev@gmail.com', 'Dev1213web##');
+      const ok = result.current.login('test@example.com', 'test-password-123');
       expect(ok).toBe(true);
     });
     expect(result.current.isAuthenticated).toBe(true);
@@ -243,7 +243,7 @@ describe('useAuth', () => {
   it('logout resets isAuthenticated to false', () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     act(() => {
-      result.current.login('uzcateguijesusdev@gmail.com', 'Dev1213web##');
+      result.current.login('test@example.com', 'test-password-123');
     });
     act(() => {
       result.current.logout();
@@ -853,8 +853,8 @@ describe('LoginScreen', () => {
 
   it('clears the error on correct credentials', () => {
     const { getByTestId, queryByTestId } = renderLogin();
-    fireEvent.changeText(getByTestId('login-email'), 'uzcateguijesusdev@gmail.com');
-    fireEvent.changeText(getByTestId('login-password'), 'Dev1213web##');
+    fireEvent.changeText(getByTestId('login-email'), 'test@example.com');
+    fireEvent.changeText(getByTestId('login-password'), 'test-password-123');
     fireEvent.press(getByTestId('login-submit'));
     expect(queryByTestId('login-error')).toBeNull();
   });
@@ -1137,7 +1137,7 @@ npm run android
 
 - [ ] **Step 2: Verify Login**
 
-Enter `uzcateguijesusdev@gmail.com` / `Dev1213web##` → should land on Dashboard, Home screen visible.
+Enter `test@example.com` / `test-password-123` → should land on Dashboard, Home screen visible.
 
 Enter wrong credentials → inline error shown, stays on Login.
 

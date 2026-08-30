@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { EMAIL_PATTERN } from '../auth/emailPattern';
 import { GlassPanel } from '../theme/GlassPanel';
 import { useThemeColors } from '../theme/ThemeContext';
 import { radius, shadow, space, type } from '../theme/glass';
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export function LoginScreen() {
-  const { login } = useAuth();
+  const { login, resetAccount } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +34,26 @@ export function LoginScreen() {
       return;
     }
     setError(null);
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      'Olvidaste tu contraseña',
+      'Esto borrará la cuenta local y vas a tener que registrarte de nuevo. No hay forma de recuperar la cuenta actual. ¿Querés continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar cuenta',
+          style: 'destructive',
+          onPress: async () => {
+            const ok = await resetAccount();
+            if (!ok) {
+              setError('No se pudo borrar la cuenta. Intentá de nuevo.');
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -70,6 +89,9 @@ export function LoginScreen() {
           style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
           onPress={handleSubmit}>
           <Text style={styles.buttonText}>Ingresar</Text>
+        </Pressable>
+        <Pressable testID="login-forgot-password" onPress={handleForgotPassword}>
+          <Text style={styles.forgotPassword}>¿Olvidaste tu contraseña?</Text>
         </Pressable>
       </GlassPanel>
     </View>
@@ -126,6 +148,12 @@ function createStyles(color: ReturnType<typeof useThemeColors>) {
       ...type.label,
       fontSize: 16,
       color: '#ffffff',
+    },
+    forgotPassword: {
+      ...type.caption,
+      color: color.textSecondary,
+      textAlign: 'center',
+      marginTop: space.lg,
     },
   });
 }
